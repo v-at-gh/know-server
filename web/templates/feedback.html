@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Feedback Inbox — QuizKB Admin{% endblock %}
+
+{% block content %}
+<h2>Feedback Inbox</h2>
+
+{% if feedback %}
+<table class="data-table">
+	<thead>
+		<tr>
+			<th>ID</th>
+			<th>Date</th>
+			<th>Domain</th>
+			<th>Question</th>
+			<th>Reason</th>
+			<th>Comment</th>
+			<th>Status / Action</th>
+		</tr>
+	</thead>
+	<tbody>
+		{% for item in feedback %}
+		<tr {% if item.resolved_at %}style="opacity: 0.6;"{% endif %}>
+			<td>{{ item.id }}</td>
+			<td class="dim small">{{ item.date_formatted }}</td>
+			<td>{{ item.domain_slug or '-' }}</td>
+			<td>
+				{% if item.question_uuid %}
+				<a href="/question/{{ item.question_uuid }}" class="mono small">{{ item.question_uuid[:8] }}</a>
+				<br>
+				{% endif %}
+				<span>{{ item.question_text or '-' }}</span>
+			</td>
+			<td><code>{{ item.reason_code or '-' }}</code></td>
+			<td>{{ item.comment or '-' }}</td>
+			<td>
+				{% if item.resolved_at %}
+				<span class="status-ok small">Resolved ({{ item.resolved_at_formatted }})</span>
+				{% else %}
+				<form method="post" action="/feedback/{{ item.id }}/resolve" style="display:inline;">
+					<button type="submit" class="btn" style="padding: 2px 8px; font-size: 12px;">Resolve</button>
+				</form>
+				{% endif %}
+			</td>
+		</tr>
+		{% endfor %}
+	</tbody>
+</table>
+{% else %}
+<p class="dim">No feedback received yet.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Login — QuizKB Admin{% endblock %}
+{% block content %}
+<div
+	style="max-width: 400px; margin: 40px auto; padding: 24px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface);">
+	<h2 style="margin-top: 0; text-align: center;">Login</h2>
+	{% if error %}
+	<div class="banner banner-error">{{ error }}</div>
+	{% endif %}
+	<form method="post" action="/login" class="meta-form"
+		style="border: none; padding: 0; background: transparent; margin-bottom: 0;">
+		<label for="username">Username</label>
+		<input type="text" id="username" name="username" required autocomplete="username">
+
+		<label for="password">Password</label>
+		<input type="password" id="password" name="password" required autocomplete="current-password">
+
+		<div class="form-actions" style="margin-top: 16px;">
+			<button type="submit" class="btn btn-primary" style="width: 100%;">Sign In</button>
+		</div>
+	</form>
+</div>
+{% endblock %}

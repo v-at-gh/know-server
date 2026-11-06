@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Manage Campaigns — QuizKB Admin{% endblock %}
+{% block content %}
+<div class="meta" style="display: flex; justify-content: space-between; align-items: center;">
+	<h2 style="margin: 0;">Campaign Configuration</h2>
+	<a href="/config/domains" class="btn">← Manage Domains</a>
+</div>
+
+<div style="display: flex; gap: 32px; align-items: flex-start; margin-top: 24px;">
+	<!-- Форма добавления -->
+	<div class="sidebar-panel" style="flex: 0 0 340px;">
+		<h3>Add / Update Campaign</h3>
+		<form method="post" action="/config/campaigns/create" class="meta-form" style="padding: 0; border: none;">
+			<label>Slug (unique)</label>
+			<input type="text" name="slug" required placeholder="e.g. android-course" pattern="[a-z0-9\-]+">
+
+			<label>Display Name</label>
+			<input type="text" name="name" required placeholder="e.g. Android Mastery">
+
+			<label>Order</label>
+			<input type="number" name="order" value="100">
+
+			<label>Description</label>
+			<textarea name="description" rows="2"></textarea>
+
+			<label>Included Domains</label>
+			<div class="checkbox-list scroll-y" style="max-height: 200px;">
+				{% for d in domains %}
+				<label>
+					<input type="checkbox" name="domain_slugs" value="{{ d.slug }}">
+					{{ d.name }} ({{ d.slug }})
+				</label>
+				{% endfor %}
+			</div>
+
+			<div class="form-actions">
+				<button type="submit" class="btn btn-primary">Save Campaign</button>
+			</div>
+		</form>
+	</div>
+
+	<!-- Таблица -->
+	<div class="table-wrap" style="flex: 1; max-height: 75vh; overflow-y: auto;">
+		<table class="articles">
+			<thead>
+				<tr>
+					<th>Slug</th>
+					<th>Name</th>
+					<th>Domains</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for c in campaigns %}
+				<tr>
+					<td class="mono small">
+						<a href="/campaign/{{ c.slug }}" class="uuid-link">{{ c.slug }}</a>
+					</td>
+					<td>
+						<a href="/campaign/{{ c.slug }}" style="color: var(--fg); text-decoration: none; border-bottom: 1px dotted var(--line);">{{ c.name }}</a>
+						<span class="dim small">(order: {{ c.order }})</span>
+					</td>
+					<td class="small">
+						{% for ds in c.domainSlugs %}
+						<span class="lang-dot status-ok"
+							style="background:var(--surface); border-color:var(--line); color:var(--fg);">{{ ds
+							}}</span>
+						{% endfor %}
+					</td>
+				</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+	</div>
+</div>
+{% endblock %}

@@ -1,0 +1,69 @@
+[project]
+name = "know"
+version = "0.2.0"
+description = "Content-agnostic learning framework: pipeline, admin, worker, public API"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "psutil>=5.9.0",
+    "requests>=2.31.0",
+    "ollama>=0.6.2",
+    "structlog>=26.1.0",
+    # telemetry (Stage 3b)
+    "opentelemetry-api>=1.45.0",
+    "opentelemetry-sdk>=1.45.0",
+    "opentelemetry-exporter-otlp>=1.45.0",
+    "opentelemetry-instrumentation-requests>=0.66b0",
+    "opentelemetry-instrumentation-logging>=0.66b0",
+    "sqlite-vec>=0.1.9",
+    "pydantic-settings>=2.16.2",
+]
+
+[project.scripts]
+know = "scripts.know_cli:main"
+knowctl = "scripts.knowctl:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["scripts", "web", "orchestrator", "server", "quizkb"]
+exclude = [
+    "**/tests",
+    "**/tests/**",
+]
+
+[dependency-groups]
+web = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.9",
+    "itsdangerous>=2.0",
+    "opentelemetry-instrumentation-fastapi>=0.66b0",
+    "httpx>=0.27",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "pytest-timeout>=2.4.0",
+    "ruff>=0.7",
+]
+notebooks = [
+    "jupyterlab>=4.6.3",
+    "pandas>=3.0.5",
+    "lmstudio>=1.5.0",
+]
+
+[tool.uv]
+default-groups = ["dev", "web"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

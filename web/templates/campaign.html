@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}{{ detail.name }} — QuizKB Admin{% endblock %}
+
+{% block content %}
+<div class="crumbs">
+	<a href="/coverage">Coverage</a>
+	<span>/</span>
+	<a href="/campaigns">Campaigns</a>
+	<span>/</span>
+	<span>{{ detail.slug }}</span>
+</div>
+
+<h2>
+	{{ detail.name }}
+	<span class="dim small">{{ detail.slug }}</span>
+</h2>
+
+<div class="meta">
+	<span class="dim">{{ detail.description }}</span>
+</div>
+
+<div class="meta">
+	<span>{{ detail.domain_slugs|length }} domains</span>
+	<span class="status-ok">{{ ready_langs|length }} / {{ detail.langs|length }} languages ready</span>
+	{% if partial_langs %}
+	<span class="status-thin">{{ partial_langs|length }} partial</span>
+	{% endif %}
+</div>
+
+{% if detail.prerequisite_domain_slugs or detail.prerequisite_campaign_slugs %}
+<div class="meta">
+	<span class="dim">prerequisites:</span>
+	{% for p in detail.prerequisite_domain_slugs %}
+	<span class="chip">{{ p }}</span>
+	{% endfor %}
+	{% for p in detail.prerequisite_campaign_slugs %}
+	<span class="chip">→ {{ p }}</span>
+	{% endfor %}
+</div>
+{% endif %}
+
+<table class="campaign-matrix">
+	<thead>
+		<tr>
+			<th class="rowhead">domain</th>
+			{% for l in detail.langs %}
+			<th id="lang-{{ l }}">{{ l }}</th>
+			{% endfor %}
+		</tr>
+	</thead>
+	<tbody>
+		{% for row in matrix %}
+		<tr>
+			<td class="rowhead mono small">{{ detail.domain_slugs[loop.index0] }}</td>
+			{% for cell in row %}
+			<td class="cell status-{{ cell.status }}">
+				<a href="/domain/{{ cell.lang }}/{{ cell.domain }}"
+					title="{{ cell.articles }}/{{ cell.expected_articles }} articles, {{ cell.questions }} q, {{ cell.short_articles }} short">
+					{% if cell.questions > 0 %}{{ cell.questions }}{% else %}·{% endif %}
+				</a>
+			</td>
+			{% endfor %}
+		</tr>
+		{% endfor %}
+	</tbody>
+</table>
+
+<div class="legend">
+	<span class="status-ok">●</span> ok
+	<span class="status-thin">●</span> thin
+	<span class="status-incomplete">●</span> incomplete
+	<span class="status-absent">●</span> absent
+	<span class="dim small" style="margin-left: 24px;">numbers = question count, click for domain detail</span>
+</div>
+{% endblock %}

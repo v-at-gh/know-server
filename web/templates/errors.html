@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Errors — QuizKB Admin{% endblock %}
+
+{% macro qs(skip='') -%}
+{%- set items = [] -%}
+{%- if runs -%}{%- set _ = items.append('runs=' ~ runs) -%}{%- endif -%}
+{%- if reason_filter and skip != 'reason' -%}{%- set _ = items.append('reason=' ~ reason_filter) -%}{%- endif -%}
+{%- if prefix_filter and skip != 'prefix' -%}{%- set _ = items.append('prefix=' ~ prefix_filter) -%}{%- endif -%}
+{%- if run_filter and skip != 'run' -%}{%- set _ = items.append('run=' ~ run_filter) -%}{%- endif -%}
+{%- if lang_filter and skip != 'lang' -%}{%- set _ = items.append('lang=' ~ lang_filter) -%}{%- endif -%}
+{%- if now_filter and skip != 'now' -%}{%- set _ = items.append('now=' ~ now_filter) -%}{%- endif -%}
+{%- if items %}?{{ items|join('&') }}{% endif -%}
+{%- endmacro %}
+
+{% block content %}
+<div class="meta">
+	<span>{{ filtered_count }} of {{ full_count }} errors</span>
+	<span class="dim">last {{ runs }} runs · {{ logs_root }}</span>
+</div>
+
+{% if reason_filter or prefix_filter or run_filter or lang_filter or now_filter %}
+<div class="active-filters">
+	{% if reason_filter %}
+	<span class="chip">reason: {{ reason_filter }} <a href="{{ qs(skip='reason') }}">×</a></span>
+	{% endif %}
+	{% if prefix_filter %}
+	<span class="chip">prefix: {{ prefix_filter }} <a href="{{ qs(skip='prefix') }}">×</a></span>
+	{% endif %}
+	{% if run_filter %}
+	<span class="chip">run: {{ run_filter }} <a href="{{ qs(skip='run') }}">×</a></span>
+	{% endif %}
+	{% if lang_filter %}
+	<span class="chip">lang: {{ lang_filter }} <a href="{{ qs(skip='lang') }}">×</a></span>
+	{% endif %}
+	{% if now_filter %}
+	<span class="chip">now: {{ now_filter }} <a href="{{ qs(skip='now') }}">×</a></span>
+	{% endif %}
+</div>
+{% endif %}
+
+<div class="active-filters">
+	<span class="dim small" style="align-self:center">now:</span>
+	<a href="{{ qs(skip='now') }}&now=ok" class="chip {% if now_filter == 'ok' %}chip-active{% endif %}">ok</a>
+	<a href="{{ qs(skip='now') }}&now=broken"
+		class="chip {% if now_filter == 'broken' %}chip-active{% endif %}">broken</a>
+	<a href="{{ qs(skip='now') }}&now=absent"
+		class="chip {% if now_filter == 'absent' %}chip-active{% endif %}">absent</a>
+	<a href="{{ qs(skip='now') }}&now=unknown"
+		class="chip {% if now_filter == 'unknown' %}chip-active{% endif %}">unknown</a>
+</div>
+
+<div class="panels">
+	<section class="panel">
+		<h2>By reason</h2>
+		{% if summary %}
+		<table class="summary">
+			{% for r, n in summary %}
+			<tr>
+				<td><a href="{{ qs(skip='reason') }}&reason={{ r }}">{{ r }}</a></td>
+				<td class="num">{{ n }}</td>
+			</tr>
+			{% endfor %}
+		</table>
+		{% else %}
+		<p class="dim">No errors recorded.</p>
+		{% endif %}
+	</section>
+
+	<section class="panel">
+		<h2>By language</h2>
+		{% if by_lang %}
+		<table class="summary">
+			{% for lang, n in by_lang %}
+			<tr>
+				<td><a href="{{ qs(skip='lang') }}&lang={{ lang }}">{{ lang }}</a></td>
+				<td class="num">{{ n }}</td>
+			</tr>
+			{% endfor %}
+		</table>
+		{% else %}
+		<p class="dim">—</p>
+		{% endif %}
+	</section>
+</div>
+
+{% if records %}
+<table class="errors">
+	<thead>
+		<tr>
+			<th>time</th>
+			<th>run</th>
+			<th>cell</th>
+			<th>label</th>
+			<th>now</th>
+			<th>reason</th>
+			<th>response</th>
+		</tr>
+	</thead>
+	<tbody>
+		{% for r in records %}
+		<tr>
+			<td class="dim small">{{ r.ts[11:19] }}</td>
+			<td class="mono small" title="{{ r.run_id }}">
+				<a href="{{ qs(skip='run') }}&run={{ r.run_id }}">{{ r.run_short }}</a>
+			</td>
+			<td class="dim small">{{ r.cell or '—' }}</td>
+			<td class="mono small">
+				{% if r.link %}<a href="{{ r.link }}" class="uuid-link">{{ r.label }}</a>
+				{% else %}{{ r.label }}{% endif %}
+			</td>
+			<td class="small">
+				{% if r.now == 'ok' %}<span class="status-ok">ok</span>
+				{% elif r.now == 'broken' %}<span class="status-incomplete">broken</span>
+				{% elif r.now == 'absent' %}<span class="status-absent">absent</span>
+				{% else %}<span class="dim">—</span>{% endif %}
+			</td>
+			<td class="reason">
+				{{ r.reason }}
+				{% if r.detail %}<div class="dim small">{{ r.detail }}</div>{% endif %}
+			</td>
+			<td>
+				{% if r.has_prompt or r.has_response %}
+				<details>
+					<summary class="dim small">
+						{% if r.has_prompt %}prompt {{ r.prompt_len }}b{% endif %}{% if r.has_prompt and r.has_response
+						%} · {% endif %}{% if r.has_response %}resp {{ r.raw_response|length }}b{% endif %}
+					</summary>
+					<div class="side-by-side">
+						{% if r.has_prompt %}
+						<section class="col">
+							<h3>Prompt</h3>
+							<pre class="md-source">{{ r.prompt }}</pre>
+						</section>
+						{% endif %}
+						{% if r.has_response %}
+						<section class="col">
+							<h3>Response</h3>
+							<pre class="md-source">{{ r.raw_response }}</pre>
+						</section>
+						{% endif %}
+					</div>
+				</details>
+				{% else %}
+				<span class="dim small">—</span>
+				{% endif %}
+			</td>
+		</tr>
+		{% endfor %}
+	</tbody>
+</table>
+{% else %}
+<p class="dim" style="margin-top: 24px;">No records for the current filter.</p>
+{% endif %}
+{% endblock %}

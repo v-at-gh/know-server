@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Task {{ task.id.split('_')[-1] }} — QuizKB Admin{% endblock %}
+{% block content %}
+{% if error %}
+<div style="background: rgba(255, 0, 0, 0.1); border: 1px solid var(--incomplete); padding: 12px; margin-bottom: 16px; border-radius: 4px; color: var(--incomplete);">
+    {{ error }}
+</div>
+{% endif %}
+
+<div class="crumbs">
+	<a href="/tasks">Tasks</a><span>/</span><span>{{ task.id.split('_')[-1] }}</span>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+	<h2 style="margin: 0;">
+		Task <span class="mono">{{ task.id.split('_')[-1] }}</span>
+		<span class="dim small">{{ task.action }} · {{ task.domain }} -> {{ task.lang }}</span>
+	</h2>
+
+	<div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: 16px;">
+		{% if task.status in ('running', 'queued') %}
+		<button class="btn" id="btn-kill" style="color: var(--incomplete); border-color: var(--incomplete);">
+			Kill Process
+		</button>
+		{% endif %}
+
+		<button class="btn" id="btn-restart">
+			Restart
+		</button>
+	</div>
+</div>
+<div class="meta">
+	<span class="chip" id="task-status">{{ task.status }}</span>
+	{% if task.started_at %}
+	<span class="dim small">Started: {{ task.started_at[:19] | replace('T', ' ') }}</span>
+	{% endif %}
+	{% if task.finished_at %}
+	<span class="dim small">Finished: {{ task.finished_at[:19] | replace('T', ' ') }}</span>
+	{% endif %}
+	{% if task.error_message %}
+	<span class="status-incomplete small">{{ task.error_message }}</span>
+	{% endif %}
+</div>
+{% if task.progress and task.status == 'running' %}
+<div style="margin: 16px 0;">
+	<div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 12px;">
+		<span>{{ task.progress.phase | title }} {% if task.progress.current %}({{ task.progress.current }}){% endif
+			%}</span>
+		<span>{{ task.progress.done }} / {{ task.progress.total }}</span>
+	</div>
+	<div style="background: var(--surface); height: 6px; border-radius: 3px; overflow: hidden;">
+		{% if task.progress and task.status == 'running' %}
+		{% set percentage = (task.progress.done * 100 // task.progress.total) if task.progress.total > 0 else 0 %}
+		<div style="margin: 16px 0;">
+			<div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 12px;">
+				<span>{{ task.progress.phase | title }} {% if task.progress.current %}({{ task.progress.current }}){%
+					endif %}</span>
+				<span>{{ task.progress.done }} / {{ task.progress.total }}</span>
+			</div>
+			<div style="background: var(--surface); height: 6px; border-radius: 3px; overflow: hidden;">
+				<div
+					style="background: var(--ok); height: 100%; width: var(--progress-width); transition: width 0.3s ease; --progress-width: {{ percentage }}%;">
+				</div>
+			</div>
+		</div>
+		{% endif %}
+	</div>
+</div>
+{% endif %}
+<pre class="md-source" id="task-log" style="max-height: 70vh;">{{ log }}</pre>
+
+<script>
+	const taskId = "{{ task.id }}";
+	let isPolling = true;
+
+	async function pollLog() {
+		if (!isPolling) return;
+		try {
+			const res = await fetch(`/api/tasks/${taskId}`);
+			if (!res.ok) {
+				if (res.status === 503) {
+					document.getElementById('task-log').textContent = "Orchestrator is offline. Retrying...";
+					setTimeout(pollLog, 5000);
+				}
+				return;
+			}
+			const data = await res.json();
+
+			const logEl = document.getElementById('task-log');
+			const statusEl = document.getElementById('task-status');
+
+			// Проверяем, прилип ли пользователь к низу перед обновлением
+			const isScrolledToBottom = logEl.scrollHeight - logEl.clientHeight <= logEl.scrollTop + 50;
+
+			logEl.textContent = data.log;
+			statusEl.textContent = data.status;
+
+			// Красим чип в зависимости от статуса
+			statusEl.className = 'chip ' + (
+				(data.status === 'running' || data.status === 'done') ? 'status-ok' :
+					data.status === 'queued' ? 'dim' :
+						data.status === 'interrupted' ? 'status-thin' :
+							'status-incomplete'
+			);
+
+			if (isScrolledToBottom) {
+				logEl.scrollTop = logEl.scrollHeight;
+			}
+
+			if (data.status === 'running' || data.status === 'queued') {
+				setTimeout(pollLog, 1500);
+			} else {
+				isPolling = false;
+			}
+		} catch (e) {
+			console.error("Polling error", e);
+			setTimeout(pollLog, 5000);
+		}
+	}
+
+	document.addEventListener('DOMContentLoaded', () => {
+		// При открытии страницы сразу скроллим в конец
+		const logEl = document.getElementById('task-log');
+		if (logEl) logEl.scrollTop = logEl.scrollHeight;
+
+		// Запускаем поллинг только если задача ещё не закончила работу
+		if ("{{ task.status }}" === 'running' || "{{ task.status }}" === 'queued') {
+			pollLog();
+		}
+	});
+
+	document.getElementById('btn-kill')?.addEventListener('click', async () => {
+		if (!confirm("Kill this process? The DB will mark it as 'killed'.")) return;
+
+		const btn = document.getElementById('btn-kill');
+		btn.disabled = true;
+		btn.textContent = "Killing...";
+
+		const res = await fetch(`/api/tasks/${taskId}/kill`, { method: 'POST' });
+		if (res.ok) {
+			window.location.reload(); // Перезагружаем страницу, чтобы увидеть статус 'killed'
+		} else {
+			alert("Failed to kill (maybe it already finished)");
+			btn.disabled = false;
+			btn.textContent = "Kill Process";
+		}
+	});
+
+	document.getElementById('btn-restart')?.addEventListener('click', async () => {
+		const btn = document.getElementById('btn-restart');
+		btn.disabled = true;
+		btn.textContent = "Restarting...";
+
+		const res = await fetch(`/api/tasks/${taskId}/restart`, { method: 'POST' });
+		const data = await res.json();
+
+		if (data.status === 'ok') {
+			// Перенаправляем пользователя на страницу новой задачи
+			window.location.href = `/tasks/${data.new_task_id}`;
+		} else {
+			alert("Failed to restart task");
+			btn.disabled = false;
+			btn.textContent = "Restart";
+		}
+	});
+</script>
+{% endblock %}

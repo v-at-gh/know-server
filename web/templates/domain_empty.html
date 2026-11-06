@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}{{ domain_name }} — {{ lang }} — QuizKB Admin{% endblock %}
+
+{% block content %}
+<div class="crumbs">
+	<a href="/coverage">Coverage</a>
+	<span>/</span>
+	<span>{{ lang }}</span>
+	<span>/</span>
+	<span>{{ slug }}</span>
+</div>
+
+<h2>{{ domain_name }} <span class="dim small">{{ slug }} · {{ lang }}</span></h2>
+
+<div class="banner banner-error" style="margin-top: 24px;">
+	No syllabus found. This domain has been added to the configuration but has not been bootstrapped yet.
+</div>
+
+<div style="margin-top: 24px;">
+	<button class="btn btn-primary" onclick="startTask('{{ slug }}', '{{ lang }}', 'bootstrap')">
+		Bootstrap Domain (Generate Syllabus, Articles & Questions)
+	</button>
+</div>
+
+{% include "_task_modal.html" %}
+{% endblock %}

@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}Packs — QuizKB Admin{% endblock %}
+
+{% block content %}
+<div class="meta" style="display: flex; justify-content: space-between; align-items: center;">
+	<span>{{ packs_display|length }} pack{% if packs_display|length != 1 %}s{% endif %}</span>
+	<a href="/packs/builder" class="btn btn-primary">+ Create Pack</a>
+</div>
+
+{% if packs_display %}
+<table class="articles">
+	<thead>
+		<tr>
+			<th>id</th>
+			<th>kind</th>
+			<th>version</th>
+			<th class="num">size</th>
+			<th class="num">domains</th>
+			<th class="num">campaigns</th>
+			<th class="num">articles</th>
+			<th class="num">questions</th>
+			<th>selection</th>
+			<th>actions</th>
+		</tr>
+	</thead>
+	<tbody>
+		{% for p in packs_display %}
+		{% set d = p.definition %}
+		{% set b = p.built %}
+		<tr id="row-{{ d.id }}">
+			<td class="mono small">
+				{% if b and b.error %}
+				<span class="status-incomplete">{{ d.id }}</span>
+				{% elif b %}
+				<a href="/pack/{{ d.id }}">{{ d.id }}</a>
+				{% if p.built_is_stale %}<span class="dim small" title="definition changed since build"> ⚠ stale</span>{% endif %}
+				{% else %}
+				{{ d.id }} <span class="dim small">(not built)</span>
+				{% endif %}
+			</td>
+			<td class="small">{{ d.kind }}</td>
+			<td class="mono small dim">{{ b.version if b else '—' }}</td>
+			<td class="num">{% if b %}{{ "%.1f"|format(b.size_mb) }} MB{% else %}—{% endif %}</td>
+			<td class="num">{{ d.domains|length }}</td>
+			<td class="num">{{ d.campaigns|length }}</td>
+			<td class="num">{{ b.totals.get('articles', '—') if b else '—' }}</td>
+			<td class="num">{{ b.totals.get('questions', '—') if b else '—' }}</td>
+			<td class="small dim">
+				{% if p.selection_domain_count > 0 %}
+				{{ p.selection_domain_count }} dom / {{ p.selection_article_count }} art
+				{% else %}
+				—
+				{% endif %}
+			</td>
+			<td class="small" style="white-space: nowrap;">
+				<a href="/packs/builder?edit={{ d.id }}" class="edit-btn"
+					style="margin-left:0; margin-right: 8px;">edit</a>
+				<button class="btn build-btn" data-id="{{ d.id }}">Build</button>
+				{% if b and b.file %}
+				<a href="/qaps/{{ b.file }}" download class="btn" style="margin-left: 4px;">dl</a>
+				{% endif %}
+				<form method="post" action="/packs/{{ d.id }}/delete" style="display:inline; margin-left: 4px;" onsubmit="return confirm('Delete pack {{ d.id }}?');">
+					<button type="submit" class="btn" style="color: #d9534f;">del</button>
+				</form>
+			</td>
+		</tr>
+		{% endfor %}
+	</tbody>
+</table>
+
+{% if built_only %}
+<h3 style="margin-top: 30px;">Orphaned Artifacts</h3>
+<table class="articles">
+	<thead>
+		<tr>
+			<th>id</th>
+			<th>version</th>
+			<th class="num">size</th>
+			<th>file</th>
+			<th>actions</th>
+		</tr>
+	</thead>
+	<tbody>
+		{% for b in built_only %}
+		<tr>
+			<td class="mono small">{{ b.id }}</td>
+			<td class="mono small dim">{{ b.version }}</td>
+			<td class="num">{{ "%.1f"|format(b.size_mb) }} MB</td>
+			<td class="mono small">{{ b.file }}</td>
+			<td>
+				<form method="post" action="/packs/{{ b.id }}/delete" style="display:inline;" onsubmit="return confirm('Delete orphan {{ b.id }}?');">
+					<button type="submit" class="btn" style="color: #d9534f;">del</button>
+				</form>
+			</td>
+		</tr>
+		{% endfor %}
+	</tbody>
+</table>
+{% endif %}
+
+<!-- Modal for Build Output -->
+<div id="build-modal" class="modal" style="display:none;">
+	<div class="modal-content">
+		<h3>Build Output</h3>
+		<pre id="build-output">Starting...</pre>
+		<div class="form-actions">
+			<button class="btn" id="close-modal-btn">Close</button>
+		</div>
+	</div>
+</div>
+
+<script>
+	document.querySelectorAll('.build-btn').forEach(btn => {
+		btn.addEventListener('click', async (e) => {
+			const id = e.target.dataset.id;
+			const modal = document.getElementById('build-modal');
+			const out = document.getElementById('build-output');
+			const closeBtn = document.getElementById('close-modal-btn');
+
+			modal.style.display = 'flex';
+			out.textContent = `Building ${id}...\nThis may take a few moments. Please wait.\n`;
+			e.target.disabled = true;
+			closeBtn.disabled = true;
+
+			try {
+				const formData = new FormData();
+				formData.append('pack_id', id);
+				const res = await fetch('/packs/build', { method: 'POST', body: formData });
+				const data = await res.json();
+
+				out.textContent += data.message;
+				if (data.status === 'ok') {
+					out.textContent += "\n\nDone! Click Close to refresh the page.";
+					closeBtn.textContent = "Close & Refresh";
+					closeBtn.onclick = () => window.location.reload();
+				} else {
+					out.textContent += "\n\n[BUILD FAILED] Check logs above.";
+					closeBtn.textContent = "Close";
+					closeBtn.onclick = () => document.getElementById('build-modal').style.display = 'none';
+				}
+			} catch (err) {
+				out.textContent += `\nNetwork error: ${err}`;
+			} finally {
+				e.target.disabled = false;
+				closeBtn.disabled = false;
+			}
+		});
+	});
+
+	document.getElementById('close-modal-btn').addEventListener('click', () => {
+		document.getElementById('build-modal').style.display = 'none';
+	});
+</script>
+{% else %}
+<p class="dim">No packs found.</p>
+{% endif %}
+{% endblock %}

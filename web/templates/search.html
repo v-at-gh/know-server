@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Search — QuizKB Admin{% endblock %}
+
+{% block content %}
+<div class="meta">
+	<span>Full-text search across all languages</span>
+</div>
+
+<form method="get" action="/search" class="inline-form" style="margin-bottom: 24px; flex-wrap: wrap;">
+	<input type="text" name="q" value="{{ q }}" placeholder="Search articles and questions..." autocomplete="off"
+		style="flex: 1; min-width: 300px;">
+
+	<select name="lang">
+		<option value="">All Languages</option>
+		{% for l in all_langs %}
+		<option value="{{ l }}" {% if l==lang %}selected{% endif %}>{{ l }}</option>
+		{% endfor %}
+	</select>
+
+	<select name="type">
+		<option value="all" {% if type=='all' %}selected{% endif %}>Everything</option>
+		<option value="articles" {% if type=='articles' %}selected{% endif %}>Articles</option>
+		<option value="questions" {% if type=='questions' %}selected{% endif %}>Questions</option>
+	</select>
+
+	<button type="submit">Search</button>
+</form>
+
+{% if q %}
+<div class="meta" style="display: flex; justify-content: space-between; align-items: center;">
+	<span>{{ articles|length + questions|length }} results for "{{ q }}"</span>
+	{% if semantic_used %}
+	<span class="chip status-ok" style="font-size: 0.8em; padding: 2px 8px;">Vector Search Enabled</span>
+	{% else %}
+	<span class="chip" style="font-size: 0.8em; padding: 2px 8px; color: var(--dim);">Keyword Search (FTS)</span>
+	{% endif %}
+</div>
+
+{% if articles %}
+<section>
+	<h3>Articles ({{ articles|length }})</h3>
+	<div class="search-results">
+		{% for a in articles %}
+		<div class="search-result">
+			<div class="search-head">
+				<a href="/article/{{ a.lang }}/{{ a.domain_slug }}/{{ a.slug }}" class="mono small">{{ a.domain_slug
+					}}/{{ a.slug }}</a>
+				<span class="lang-dot status-ok">{{ a.lang }}</span>
+			</div>
+			<div class="search-title">{{ a.title }}</div>
+			<div class="search-snippet">{{ a.snippet | safe }}</div>
+		</div>
+		{% endfor %}
+	</div>
+</section>
+{% endif %}
+
+{% if questions %}
+<section>
+	<h3>Questions ({{ questions|length }})</h3>
+	<div class="search-results">
+		{% for q in questions %}
+		<div class="search-result">
+			<div class="search-head">
+				<a href="/question/{{ q.uuid }}" class="mono small">{{ q.uuid[:8] }}</a>
+				<span class="lang-dot status-ok">{{ q.lang }}</span>
+			</div>
+			<div class="search-title">{{ q.text }}</div>
+			<div class="search-snippet">{{ q.snippet | safe }}</div>
+			<div class="dim small" style="margin-top: 4px;">Answer: {{ q.answer }}</div>
+		</div>
+		{% endfor %}
+	</div>
+</section>
+{% endif %}
+
+{% if not articles and not questions %}
+<p class="dim">No results found.</p>
+{% endif %}
+{% endif %}
+{% endblock %}

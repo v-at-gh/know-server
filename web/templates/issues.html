@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Issues — QuizKB Admin{% endblock %}
+
+{% macro qs(skip='') -%}
+{%- set items = [] -%}
+{%- if severity_filter and skip != 'severity' -%}{%- set _ = items.append('severity=' ~ severity_filter) -%}{%- endif
+-%}
+{%- if check_filter and skip != 'check' -%}{%- set _ = items.append('check=' ~ check_filter) -%}{%- endif -%}
+{%- if lang_filter and skip != 'lang' -%}{%- set _ = items.append('lang=' ~ lang_filter) -%}{%- endif -%}
+{%- if domain_filter and skip != 'domain' -%}{%- set _ = items.append('domain=' ~ domain_filter) -%}{%- endif -%}
+{%- if show and show != 'active' -%}{%- set _ = items.append('show=' ~ show) -%}{%- endif -%}
+{%- if items %}?{{ items|join('&') }}{% endif -%}
+{%- endmacro %}
+
+{% block content %}
+<div class="meta">
+	<span class="status-incomplete">{{ active_count }} active</span>
+	<span class="dim">{{ acked_count }} acked</span>
+	<span class="dim">·</span>
+	<a href="?show=active" {% if show=='active' %}class="chip chip-active" {% else %}class="chip" {% endif %}>active</a>
+	<a href="?show=acked" {% if show=='acked' %}class="chip chip-active" {% else %}class="chip" {% endif %}>acked</a>
+	<a href="?show=all" {% if show=='all' %}class="chip chip-active" {% else %}class="chip" {% endif %}>all</a>
+</div>
+
+{% if severity_filter or check_filter or lang_filter or domain_filter %}
+<div class="active-filters">
+	{% if severity_filter %}<span class="chip">severity: {{ severity_filter }} <a
+			href="{{ qs(skip='severity') }}">×</a></span>{% endif %}
+	{% if check_filter %}<span class="chip">check: {{ check_filter }} <a href="{{ qs(skip='check') }}">×</a></span>{%
+	endif %}
+	{% if lang_filter %}<span class="chip">lang: {{ lang_filter }} <a href="{{ qs(skip='lang') }}">×</a></span>{% endif
+	%}
+	{% if domain_filter %}<span class="chip">domain: {{ domain_filter }} <a
+			href="{{ qs(skip='domain') }}">×</a></span>{% endif %}
+</div>
+{% endif %}
+
+{% if show == 'active' or show == 'all' %}
+<div class="panels">
+	<section class="panel">
+		<h2>By severity</h2>
+		{% if sev_facet %}
+		<table class="summary">
+			{% for sev, n in sev_facet %}
+			<tr>
+				<td><a href="{{ qs(skip='severity') }}&severity={{ sev }}">{{ sev }}</a></td>
+				<td class="num">{{ n }}</td>
+			</tr>
+			{% endfor %}
+		</table>
+		{% else %}
+		<p class="dim">—</p>
+		{% endif %}
+	</section>
+
+	<section class="panel">
+		<h2>By check</h2>
+		{% if check_facet %}
+		<table class="summary">
+			{% for chk, n in check_facet %}
+			<tr>
+				<td><a href="{{ qs(skip='check') }}&check={{ chk }}">{{ chk }}</a></td>
+				<td class="num">{{ n }}</td>
+			</tr>
+			{% endfor %}
+		</table>
+		{% else %}
+		<p class="dim">—</p>
+		{% endif %}
+	</section>
+
+	<section class="panel">
+		<h2>By language</h2>
+		{% if lang_facet %}
+		<table class="summary">
+			{% for lang, n in lang_facet %}
+			<tr>
+				<td><a href="{{ qs(skip='lang') }}&lang={{ lang }}">{{ lang }}</a></td>
+				<td class="num">{{ n }}</td>
+			</tr>
+			{% endfor %}
+		</table>
+		{% else %}
+		<p class="dim">—</p>
+		{% endif %}
+	</section>
+
+	<section class="panel">
+		<h2>By domain</h2>
+		{% if domain_facet %}
+		<table class="summary">
+			{% for dom, n in domain_facet %}
+			<tr>
+				<td><a href="{{ qs(skip='domain') }}&domain={{ dom }}">{{ dom }}</a></td>
+				<td class="num">{{ n }}</td>
+			</tr>
+			{% endfor %}
+		</table>
+		{% else %}
+		<p class="dim">—</p>
+		{% endif %}
+	</section>
+</div>
+{% endif %}
+
+<div id="issues-container" hx-get="/api/issues/table?{{ request.url.query }}" hx-trigger="refreshTable from:body" hx-swap="innerHTML">
+	{% include "issues_table_partial.html" %}
+</div>
+
+{% endblock %}

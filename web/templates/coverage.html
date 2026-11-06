@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Coverage — QuizKB Admin{% endblock %}
+
+{% block content %}
+<div x-data="coverageFilters('{{ selected_domains|join(',') }}', '{{ selected_langs|join(',') }}')" class="coverage-layout">
+
+    <!-- Sidebar -->
+    <aside class="coverage-sidebar">
+        <h3>Domains</h3>
+        <div class="sidebar-actions">
+            <a href="#" @click.prevent="selectAllDomains()">All</a> |
+            <a href="#" @click.prevent="clearAllDomains()">None</a>
+        </div>
+
+        {% for group in domain_groups %}
+        <div class="sidebar-group" x-data="{ open: true }">
+            <div class="sidebar-group-header" @click="open = !open">
+                <span x-text="open ? '▼' : '▶'"></span> {{ group.name }}
+                <span style="float: right; font-size: 11px; font-weight: normal;" @click.stop>
+                    <a href="#" @click.prevent="toggleGroup($el, true)">All</a> |
+                    <a href="#" @click.prevent="toggleGroup($el, false)">None</a>
+                </span>
+            </div>
+            <div x-show="open" class="sidebar-group-items">
+                {% for d in group.domains %}
+                <label>
+                    <input type="checkbox" value="{{ d.slug }}" x-model="domains" @change="fetchTable()">
+                    {{ d.name }} ({{ abbrev(d.slug) }})
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+        <h3 style="margin-top: 20px;">Languages</h3>
+        <div class="sidebar-actions">
+            <a href="#" @click.prevent="selectAllLangs()">All</a> |
+            <a href="#" @click.prevent="clearAllLangs()">None</a>
+        </div>
+        <div class="sidebar-group-items" style="display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 0;">
+            {% for l in all_langs %}
+            <label class="chip" :class="{'chip-active': langs.includes('{{ l }}')}">
+                <input type="checkbox" value="{{ l }}" x-model="langs" @change="fetchTable()" style="display:none;">
+                {{ l }}
+            </label>
+            {% endfor %}
+        </div>
+    </aside>
+
+    <!-- Main Table -->
+    <main class="coverage-main">
+        <div id="coverage-table-container"
+             hx-get="/api/coverage/table">
+            {% include "coverage_table_partial.html" %}
+        </div>
+
+        <div class="legend" style="margin-top: 24px;">
+            <span class="status-ok">●</span> ok
+            <span class="status-thin">●</span> thin
+            <span class="status-incomplete">●</span> incomplete
+            <span class="status-absent">●</span> absent
+        </div>
+    </main>
+</div>
+
+<script>
+function coverageFilters(initialDomains, initialLangs) {
+    return {
+        domains: initialDomains ? initialDomains.split(',') : [],
+        langs: initialLangs ? initialLangs.split(',') : [],
+        init() {
+            this.fetchTable();
+            this._interval = setInterval(() => this.fetchTable(), 10000);
+        },
+        destroy() {
+            if (this._interval) clearInterval(this._interval);
+        },
+        fetchTable() {
+            const url = new URL('/api/coverage/table', window.location.origin);
+            if (this.domains.length) url.searchParams.set('domains', this.domains.join(','));
+            else url.searchParams.set('domains', '_none_');
+
+            if (this.langs.length) url.searchParams.set('langs', this.langs.join(','));
+            else url.searchParams.set('langs', '_none_');
+
+            const pageUrl = new URL('/coverage', window.location.origin);
+            pageUrl.search = url.search;
+            window.history.replaceState({}, '', pageUrl);
+
+            htmx.ajax('GET', url.toString(), { target: '#coverage-table-container', swap: 'innerHTML' });
+        },
+        selectAllDomains() {
+            this.domains = Array.from(document.querySelectorAll('.sidebar-group-items input[type="checkbox"]')).map(cb => cb.value);
+            this.fetchTable();
+        },
+        clearAllDomains() {
+            this.domains = [];
+            this.fetchTable();
+        },
+        selectAllLangs() {
+            this.langs = {{ all_langs | tojson }};
+            this.fetchTable();
+        },
+        clearAllLangs() {
+            this.langs = [];
+            this.fetchTable();
+        },
+        toggleGroup(el, checked) {
+            const groupDiv = el.closest('.sidebar-group');
+            if (!groupDiv) return;
+            const checkboxes = groupDiv.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                const val = cb.value;
+                if (checked) {
+                    if (!this.domains.includes(val)) this.domains.push(val);
+                } else {
+                    this.domains = this.domains.filter(d => d !== val);
+                }
+            });
+            this.fetchTable();
+        }
+    }
+}
+</script>
+{% endblock %}

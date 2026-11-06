@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}{{ entry.id }} — Pack — QuizKB Admin{% endblock %}
+
+{% block content %}
+<div class="crumbs">
+	<a href="/coverage">Coverage</a>
+	<span>/</span>
+	<a href="/packs">Packs</a>
+	<span>/</span>
+	<span>pack {{ entry.id }}</span>
+</div>
+
+<h2>
+	{{ entry.id }}
+	<span class="dim small">{{ entry.file }}</span>
+</h2>
+
+<div class="meta">
+	<span class="chip">{{ entry.kind }}</span>
+	<span class="mono">{{ entry.version }}</span>
+	<span>{{ "%.1f"|format(entry.size_mb) }} MB</span>
+	<span>{{ detail.domains|length }} domains</span>
+	{% if detail.campaigns %}
+	<span>{{ detail.campaigns|length }} campaigns</span>
+	{% endif %}
+	<span>{{ detail.articles_total }} articles</span>
+	<span>{{ detail.questions_total }} questions</span>
+	<span class="dim small">{{ entry.createdAt }}</span>
+</div>
+
+<div class="meta">
+	<a href="/qaps/{{ entry.file }}" download>Download {{ entry.file }}</a>
+	<span class="dim small mono">{{ entry.sha256 }}</span>
+</div>
+
+{% if readiness and readiness.has_selection %}
+<section style="background: var(--bg-card, #f8f9fa); border: 1px solid var(--border-color, #dee2e6); padding: 16px; border-radius: 6px; margin-bottom: 24px;">
+	<h3 style="margin-top:0;">Selection Readiness</h3>
+	<p>
+		Status:
+		{% if readiness.ready %}
+		<span class="chip" style="background:#d4edda; color:#155724;">ready ✓</span>
+		{% else %}
+		<span class="chip" style="background:#f8d7da; color:#721c24;">incomplete ⚠</span>
+		{% endif %}
+	</p>
+	{% if readiness.blockers %}
+	<div style="background:#f8d7da; color:#721c24; padding:8px; border-radius:4px; margin-bottom:12px;">
+		<strong>Blockers:</strong>
+		<ul style="margin:4px 0 0 20px;">
+			{% for b in readiness.blockers %}
+			<li>{{ b }}</li>
+			{% endfor %}
+		</ul>
+	</div>
+	{% endif %}
+	<h4>Per-Domain Summary</h4>
+	<ul>
+		{% for ds, dinfo in readiness.per_domain.items() %}
+		<li>
+			<strong>{{ ds }}</strong>: {{ dinfo.get('articles_complete', 0) }}/{{ dinfo.get('articles_selected', 0) }} articles complete
+			<ul style="margin:2px 0 8px 20px;">
+				{% for lang, linfo in dinfo.per_lang.items() %}
+				<li>{{ lang }}: {{ linfo.articles_present }}/{{ dinfo.articles_selected }} present, {{ linfo.articles_complete }} complete</li>
+				{% endfor %}
+			</ul>
+		</li>
+		{% endfor %}
+	</ul>
+</section>
+{% endif %}
+
+{% if detail.campaigns %}
+<section>
+	<h3>Campaigns</h3>
+	{% for c in detail.campaigns %}
+	<article class="pack-campaign">
+		<h4>
+			{{ c.name.get('en', c.slug) }}
+			<span class="dim small"><a href="/campaign/{{ c.slug }}" class="uuid-link">{{ c.slug }}</a> · order {{ c.order }}</span>
+		</h4>
+		{% set desc = c.description.get('en', '') %}
+		{% if desc %}<p class="dim">{{ desc }}</p>{% endif %}
+		<p class="mono small">
+			{% for ds in c.domain_slugs %}<a href="/domain/en/{{ ds }}">{{ ds }}</a>{% if not loop.last %}, {% endif
+			%}{% endfor %}
+		</p>
+		{% if c.prerequisite_domain_slugs %}
+		<p class="dim small">prerequisites:
+			{% for ds in c.prerequisite_domain_slugs %}<span class="chip">{{ ds }}</span>{% endfor %}
+		</p>
+		{% endif %}
+	</article>
+	{% endfor %}
+</section>
+{% endif %}
+
+<section>
+	<h3>Coverage in pack</h3>
+	<table class="coverage">
+		<thead>
+			<tr>
+				<th class="rowhead">domain</th>
+				{% for lang in entry.languages %}
+				<th>{{ lang }}</th>
+				{% endfor %}
+			</tr>
+		</thead>
+		<tbody>
+			{% for d in detail.domains %}
+			<tr>
+				<td class="rowhead mono small">{{ d.slug }}</td>
+				{% for lang in entry.languages %}
+				{% if lang in d.languages %}
+				<td class="cell status-ok"
+					title="{{ d.articles.get(lang, 0) }} articles · {{ d.article_bytes.get(lang, 0) }} bytes · {{ d.questions.get(lang, 0) }} questions">
+					{{ d.questions.get(lang, 0) }}
+				</td>
+				{% else %}
+				<td class="cell status-absent">·</td>
+				{% endif %}
+				{% endfor %}
+			</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+	<p class="dim small">number = questions; empty = domain not present in this pack</p>
+</section>
+
+<section>
+	<h3>Files in archive ({{ detail.files|length }})</h3>
+	<details>
+		<summary class="dim small">show paths</summary>
+		<table class="articles">
+			<thead>
+				<tr>
+					<th>path</th>
+					<th class="num">bytes</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for path, size in detail.files %}
+				<tr>
+					<td class="mono small">{{ path }}</td>
+					<td class="num">{{ size }}</td>
+				</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+	</details>
+</section>
+{% endblock %}

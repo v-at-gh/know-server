@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Domains — QuizKB Admin{% endblock %}
+
+{% block content %}
+<div class="meta">
+	<span>{{ domains|length }} domains active</span>
+</div>
+
+<div class="table-wrap">
+	<table class="articles">
+		<thead>
+			<tr>
+				<th>Domain</th>
+				<th>Kind</th>
+				<th>Available Languages</th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for d in domains %}
+			<tr>
+				<td>
+					<div style="font-weight: 500;">{{ d.name }}</div>
+					<div class="dim small">{{ d.description }}</div>
+				</td>
+				<td class="small dim">{{ d.kind }}</td>
+				<td>
+					{% if d.languages %}
+					{% for lang, s in d.languages.items() %}
+					<a href="/domain/{{ lang }}/{{ d.slug }}" class="lang-dot status-{{ s.status }}"
+						style="text-decoration: none;" title="{{ s.questions }} questions, {{ s.articles }} articles">
+						{{ lang }}
+					</a>
+					{% endfor %}
+					{% else %}
+					<span class="dim small">No content in your active languages</span>
+					{% endif %}
+				</td>
+			</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+</div>
+{% endblock %}

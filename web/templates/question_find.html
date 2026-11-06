@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Find {{ prefix }} — QuizKB Admin{% endblock %}
+
+{% block content %}
+<div class="crumbs">
+	<a href="/errors">Errors</a>
+	<span>/</span>
+	<span>find {{ prefix }}</span>
+</div>
+
+<h2>
+	Question prefix <span class="mono dim">{{ prefix }}</span>
+</h2>
+
+{% if matches %}
+<div class="meta">
+	<span>{{ matches|length }} match{% if matches|length != 1 %}es{% endif %}</span>
+</div>
+
+<table class="articles">
+	<thead>
+		<tr>
+			<th>uuid</th>
+			<th>domain</th>
+			<th>languages</th>
+		</tr>
+	</thead>
+	<tbody>
+		{% for m in matches %}
+		<tr>
+			<td class="mono small">
+				<a href="/question/{{ m.uuid }}" class="uuid-link">{{ m.uuid[:8] }}</a>
+				<span class="dim">{{ m.uuid }}</span>
+			</td>
+			<td class="mono small">
+				<a href="/domain/en/{{ m.domain }}">{{ m.domain }}</a>
+			</td>
+			<td class="small">
+				{% for lang in m.languages %}
+				<span class="lang-dot status-ok">{{ lang }}</span>
+				{% endfor %}
+			</td>
+		</tr>
+		{% endfor %}
+	</tbody>
+</table>
+{% else %}
+<div class="meta">
+	<span class="status-incomplete">no matches</span>
+	<span class="dim">nothing in the current datasets starts with <span class="mono">{{ prefix }}</span></span>
+</div>
+<p class="dim">
+	The question may have been removed, or the prefix came from an older run.
+</p>
+<p>
+	<a href="/errors">← back to errors</a>
+</p>
+{% endif %}
+{% endblock %}

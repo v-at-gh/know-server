@@ -1,0 +1,53 @@
+name: test
+
+on: [push, pull_request]
+
+jobs:
+  pytest:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    container:
+      image: docker.gitea.com/runner-images:ubuntu-26.04
+      volumes:
+        - know-ci-uv-cache:/root/.cache/uv
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-local-path: /root/.cache/uv
+          prune-cache: false
+          cache-dependency-glob: |
+            **/pyproject.toml
+            **/uv.lock
+
+      - name: Check lockfile is up to date
+        run: uv lock --check
+
+      - name: Install dependencies
+        run: uv sync --locked --all-groups
+        timeout-minutes: 10
+
+      - name: Run pytest
+        run: uv run pytest tests/ -q --tb=short --timeout=60 --timeout-method=thread
+        timeout-minutes: 10
+        env:
+          PYTHONUNBUFFERED: "1"
+
+      - name: Cache pytest
+        uses: actions/cache@v4
+        with:
+          path: .pytest_cache
+          key: pytest-${{ hashFiles('**/uv.lock') }}
+
+      - name: Cache tool caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pre-commit
+            ~/.cache/ruff
+            ~/.cache/mypy
+          key: tools-${{ hashFiles('**/uv.lock') }}

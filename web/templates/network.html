@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Network — QuizKB Admin{% endblock %}
+
+{% block content %}
+<div class="meta">
+	{% if server_running %}
+	<span class="status-ok">TCP listener on :{{ server_port }}</span>
+	{% else %}
+	<span class="status-incomplete">TCP listener not running</span>
+	{% endif %}
+	<span class="dim"><a href="/packs">{{ pack_count }} pack{% if pack_count != 1 %}s{% endif %} →</a></span>
+</div>
+
+<p class="dim small" style="max-width: 720px; margin-bottom: 24px;">
+	Inbound TCP 42069 must be allowed through Windows Firewall.
+	It is added automatically on first launch; check
+	Defender → Inbound Rules if the Android device cannot reach this host.
+</p>
+
+<section>
+	<h3>Ping app</h3>
+	<form method="post" action="/network/ping" class="inline-form">
+		<input type="text" name="host" value="{{ host }}" placeholder="192.168.1.42" autocomplete="off"
+			spellcheck="false">
+		<button type="submit">Ping app</button>
+	</form>
+
+	{% if ping_result %}
+	{% if ping_result.status == 'ok' %}
+	<div class="ping-status status-ok">{{ ping_result.rtt_ms }} ms</div>
+	{% elif 'timeout' in ping_result.reason %}
+	<div class="ping-status status-thin">{{ ping_result.reason }}</div>
+	{% else %}
+	<div class="ping-status status-incomplete">{{ ping_result.reason }}</div>
+	{% endif %}
+	{% else %}
+	<div class="ping-status dim">—</div>
+	{% endif %}
+</section>
+
+<section>
+	<h3>Incoming pings ({{ pings|length }})</h3>
+	{% if pings %}
+	<table class="articles">
+		<thead>
+			<tr>
+				<th>time</th>
+				<th>source</th>
+				<th>from</th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for p in pings %}
+			<tr>
+				<td class="mono small dim">{{ p.ts[11:23] }}</td>
+				<td class="mono small">{{ p.source_ip }}</td>
+				<td class="dim small">{{ p.from }}</td>
+			</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+	{% else %}
+	<p class="dim">no pings received yet.</p>
+	{% endif %}
+</section>
+{% endblock %}

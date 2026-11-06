@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>{% block title %}QuizKB Admin{% endblock %}</title>
+	<script>
+		(function () {
+			var stored = localStorage.getItem('theme');
+			var theme = stored;
+			if (!theme) {
+				theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+			}
+			document.documentElement.dataset.theme = theme;
+		})();
+	</script>
+	<link rel="stylesheet" href="/static/style.css">
+
+	<!-- Markdown -->
+	<script src="/static/vendor/marked.min.js"
+		onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/marked@12/marked.min.js';"></script>
+
+	<!-- KaTeX (CSS + JS + auto-render) -->
+	<link rel="stylesheet" href="/static/vendor/katex.min.css"
+		onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css';">
+	<script defer src="/static/vendor/katex.min.js"
+		onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js';"></script>
+	<script defer src="/static/vendor/auto-render.min.js"
+		onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js';"></script>
+
+	<!-- HTMX -->
+	<script src="/static/vendor/htmx.min.js"
+		onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/htmx.org@1.9.10/dist/htmx.min.js';"></script>
+
+	<!-- Alpine.js -->
+	<script defer src="/static/vendor/alpine.min.js"
+		onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js';"></script>
+</head>
+
+<body>
+	<header>
+		<div class="brand">QuizKB Admin</div>
+
+		{% if user %}
+		<div class="nav-links" x-data="{ openGroup: null }">
+			<!-- Content Group -->
+			<div class="nav-group relative" @mouseleave="openGroup = null">
+				<button @click="openGroup = openGroup === 'content' ? null : 'content'"
+					@mouseenter="openGroup = 'content'" class="nav-btn">
+					Content ▾
+				</button>
+				<div x-show="openGroup === 'content'" x-cloak class="dropdown-menu">
+					<a href="/coverage">Coverage</a>
+					<a href="/domains">Domains</a>
+					<a href="/campaigns">Campaigns</a>
+					<a href="/packs">Packs</a>
+					<a href="/config/domains">Config</a>
+				</div>
+			</div>
+
+			<!-- Ops Group -->
+			<div class="nav-group relative" @mouseleave="openGroup = null">
+				<button @click="openGroup = openGroup === 'ops' ? null : 'ops'" @mouseenter="openGroup = 'ops'"
+					class="nav-btn">
+					Ops ▾
+					<span id="global-tasks-badge"
+						style="display:none; background: var(--surface); border: 1px solid var(--ok); color: var(--ok); padding: 1px 6px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-left: 4px;">
+						<span id="task-count">0</span>
+					</span>
+				</button>
+				<div x-show="openGroup === 'ops'" x-cloak class="dropdown-menu">
+					<a href="/tasks">Tasks</a>
+					<a href="/issues">Issues</a>
+					<a href="/errors">Errors</a>
+					<a href="/feedback">Feedback</a>
+				</div>
+			</div>
+
+			<!-- Tools Group -->
+			<div class="nav-group relative" @mouseleave="openGroup = null">
+				<button @click="openGroup = openGroup === 'tools' ? null : 'tools'" @mouseenter="openGroup = 'tools'"
+					class="nav-btn">
+					Tools ▾
+				</button>
+				<div x-show="openGroup === 'tools'" x-cloak class="dropdown-menu">
+					<a href="/search">Search</a>
+					<a href="/network">Network</a>
+				</div>
+			</div>
+		</div>
+		{% endif %}
+
+		<div class="nav-actions">
+			{% if user %}
+			<form method="post" action="/sync" style="display:flex; margin: 0;">
+				<button type="submit" class="btn" style="padding: 4px 8px; font-size: 12px;">Sync DB</button>
+			</form>
+			{% endif %}
+			<button id="theme-toggle" aria-label="Toggle theme"
+				style="background: none; border: none; color: var(--fg); cursor: pointer; font-size: 16px;">◐</button>
+
+			{% if user %}
+			<div
+				style="display: flex; gap: 12px; align-items: center; padding-left: 12px; border-left: 1px solid var(--line);">
+				<a href="/settings/profile" class="dim"
+					style="font-size: 13px; text-decoration: none; font-weight: 500;">👤 {{ user.username }}</a>
+				<form method="post" action="/logout" style="display:inline; margin:0;">
+					<button type="submit" class="dim"
+						style="background:none;border:none;cursor:pointer;padding:0;font:inherit;color:inherit;">Logout</button>
+				</form>
+			</div>
+			{% endif %}
+		</div>
+	</header>
+	<main>
+		{% block content %}{% endblock %}
+	</main>
+	<script>
+		(function () {
+			var btn = document.getElementById('theme-toggle');
+			var root = document.documentElement;
+			var mq = window.matchMedia('(prefers-color-scheme: dark)');
+
+			btn.addEventListener('click', function () {
+				var current = root.dataset.theme;
+				var next = current === 'dark' ? 'light'
+					: current === 'light' ? (mq.matches ? 'dark' : 'light')
+						: 'dark';
+				if (current === 'dark') next = 'light';
+				else if (current === 'light') next = 'dark';
+				else next = 'dark';
+
+				root.dataset.theme = next;
+				localStorage.setItem('theme', next);
+			});
+
+			mq.addEventListener('change', function (e) {
+				if (!localStorage.getItem('theme')) {
+					root.dataset.theme = e.matches ? 'dark' : 'light';
+				}
+			});
+		})();
+	</script>
+	<script>
+		let badgeInterval = null;
+		async function updateTaskBadge() {
+			try {
+				const res = await fetch('/api/tasks/active');
+				if (res.status === 401 || res.status === 403) {
+					if (badgeInterval) clearInterval(badgeInterval);
+					return;
+				}
+				const data = await res.json();
+				const badge = document.getElementById('global-tasks-badge');
+				const countSpan = document.getElementById('task-count');
+				if (data.count > 0) {
+					badge.style.display = 'inline-block';
+					countSpan.textContent = data.count;
+				} else {
+					badge.style.display = 'none';
+				}
+			} catch (e) {
+				console.error("Failed to fetch task count", e);
+			}
+		}
+		document.addEventListener('DOMContentLoaded', () => {
+			updateTaskBadge();
+			badgeInterval = setInterval(updateTaskBadge, 5000);
+		});
+	</script>
+	<script>
+		if (typeof marked !== 'undefined') {
+			marked.setOptions({ breaks: true, gfm: true });
+		}
+
+		function renderMarkdown(text) {
+			if (!text) return "";
+			if (typeof marked === 'undefined') return "Loading...";
+			let html = marked.parse(text);
+
+			const tempDiv = document.createElement('div');
+			tempDiv.innerHTML = html;
+
+			if (window.renderMathInElement) {
+				renderMathInElement(tempDiv, {
+					delimiters: [
+						{ left: '$$', right: '$$', display: true },
+						{ left: '$', right: '$', display: false },
+						{ left: '\\[', right: '\\]', display: true },
+						{ left: '\\(', right: '\\)', display: false }
+					],
+					throwOnError: false
+				});
+			}
+
+			return tempDiv.innerHTML;
+		}
+	</script>
+	<script src="/static/app.js"></script>
+</body>
+
+</html>

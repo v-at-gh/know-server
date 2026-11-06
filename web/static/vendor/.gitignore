@@ -1,0 +1,5 @@
+# Vendor libraries are downloaded via scripts/download-vendors.sh
+# Do not commit — see repo root README for setup.
+*
+!.gitignore
+

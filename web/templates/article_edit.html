@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ slug }} — {{ lang }} — QuizKB Admin{% endblock %}
+
+{% block content %}
+<div class="crumbs">
+	<a href="/coverage">Coverage</a>
+	<span>/</span>
+	<a href="/domain/{{ lang }}/{{ domain }}">{{ lang }} · {{ domain_display }}</a>
+	<span>/</span>
+	<a href="/article/{{ lang }}/{{ domain }}/{{ slug }}">{{ slug }}</a>
+	<span>/</span>
+	<span>Edit</span>
+</div>
+
+<div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;">
+	<h2>Edit Article: {{ current.title or slug }}</h2>
+	<div class="dim small" x-data="{ text: {{ current.text | tojson }} }" x-text="text.length + ' chars'"></div>
+</div>
+
+<form method="post" x-data="{ content: {{ current.text | tojson }} }">
+	<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; height: calc(100vh - 220px);">
+		<div style="display: flex; flex-direction: column;">
+			<textarea name="content" x-model="content"
+				style="flex: 1; font-family: monospace; font-size: 13px; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 12px; resize: none; line-height: 1.5;"
+				spellcheck="false"
+				@keydown.tab.prevent="
+					const start = $el.selectionStart;
+					const end = $el.selectionEnd;
+					content = content.substring(0, start) + '    ' + content.substring(end);
+					$nextTick(() => { $el.selectionStart = $el.selectionEnd = start + 4; });
+				"
+			></textarea>
+		</div>
+		<div style="display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); padding: 12px; overflow-y: auto;">
+			<div class="markdown-body" x-html="renderMarkdown(content)"></div>
+		</div>
+	</div>
+
+	<div class="form-actions" style="margin-top: 16px;">
+		<a href="/article/{{ lang }}/{{ domain }}/{{ slug }}" class="btn">Cancel</a>
+		<button type="submit" class="btn btn-primary">Save Changes</button>
+	</div>
+</form>
+{% endblock %}

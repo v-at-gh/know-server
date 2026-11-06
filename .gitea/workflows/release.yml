@@ -1,0 +1,40 @@
+name: release
+on:
+  push:
+    tags: ['v*']
+jobs:
+  build-packs:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    container:
+      image: docker.gitea.com/runner-images:ubuntu-26.04
+      volumes:
+        - know-ci-uv-cache:/root/.cache/uv
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-local-path: /root/.cache/uv
+          prune-cache: false
+          cache-dependency-glob: |
+            **/pyproject.toml
+            **/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --frozen --group web
+        timeout-minutes: 10
+
+      - name: Make packs
+        run: uv run python scripts/make_packs.py
+
+      - name: Update manifest
+        run: uv run python scripts/update_manifest.py
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: qap-artifacts-${{ github.ref_name }}
+          path: state/qaps/*.qap

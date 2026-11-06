@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Question — QuizKB Admin{% endblock %}
+
+{% block content %}
+<div class="crumbs">
+	<a href="/coverage">Coverage</a>
+	<span>/</span>
+	<a href="/domain/{{ lang }}/{{ domain }}">{{ lang }} · {{ domain }}</a>
+	<span>/</span>
+	<a href="/question/{{ en_q.get('uuid') }}">Question {{ en_q.get('uuid')[:8] }}</a>
+	<span>/</span>
+	<span>Edit</span>
+</div>
+
+<h2>Edit Question <span class="mono dim">{{ en_q.get('uuid')[:8] }}</span> <span class="dim small">({{ lang }})</span></h2>
+
+{% if errors %}
+<div class="banner banner-error" style="margin-top: 16px;">
+	<strong>Validation Errors:</strong>
+	<ul style="margin: 4px 0 0 16px;">
+		{% for err in errors %}
+		<li>{{ err }}</li>
+		{% endfor %}
+	</ul>
+</div>
+{% endif %}
+
+{% if is_draft %}
+<div class="banner banner-warning" style="margin-top: 16px;">
+	Translation missing or rejected. Pre-filled with English. Edit and save to create translation.
+</div>
+{% endif %}
+
+<div style="display: flex; gap: 24px; align-items: flex-start; margin-top: 16px;">
+	<!-- LEFT: Source (EN) Read-only -->
+	<div class="meta-form" style="flex: 1; max-width: none; background: var(--surface);">
+		<h3 style="margin-top: 0; font-size: 14px; text-transform: uppercase; color: var(--dim); letter-spacing: 0.4px;">Source (EN)</h3>
+		<div style="font-weight: 500; margin-bottom: 8px;">{{ en_q.get('text', '') }}</div>
+		<div class="q-answer"><span class="dim">A</span>{{ en_q.get('answer', '') }}</div>
+		{% if en_q.get('answerWhy') %}
+		<div class="dim small" style="margin-top: 4px;"><strong>Why:</strong> {{ en_q.get('answerWhy') }}</div>
+		{% endif %}
+		<div class="dim small" style="margin-top: 12px; font-weight: 500;">Distractors:</div>
+		<ul class="q-list" style="margin-top: 4px;">
+			{% for d in en_q.get('distractors', []) %}
+			<li>
+				<span class="mono small dim">D{{ loop.index }}</span>
+				<span>{{ d.get('text', '') }}</span>
+				{% if d.get('why') %}<div class="why">{{ d.get('why', '') }}</div>{% endif %}
+			</li>
+			{% endfor %}
+		</ul>
+		<div class="dim small" style="margin-top: 12px; font-weight: 500;">Hints:</div>
+		<ul class="q-list q-hints" style="margin-top: 4px;">
+			{% for h in en_q.get('hints', []) %}
+			<li>
+				<span class="mono small dim">H{{ loop.index }}</span>
+				<span>{{ h }}</span>
+			</li>
+			{% endfor %}
+		</ul>
+	</div>
+
+	<!-- RIGHT: Target Editor -->
+	<div style="flex: 1;">
+		{% if lang != 'en' and not q %}
+			<div class="banner banner-error" style="margin-bottom: 16px;">
+				Not translated yet.
+				<form method="post" action="/question/{{ en_q.get('uuid') }}/translate" style="display:inline; margin-left: 8px;">
+					<input type="hidden" name="lang" value="{{ lang }}">
+					<input type="hidden" name="domain" value="{{ domain }}">
+					<button type="submit" class="btn btn-primary">Translate Automatically</button>
+				</form>
+			</div>
+		{% endif %}
+
+		<form method="post" action="/question/{{ en_q.get('uuid') }}/edit?lang={{ lang }}&domain={{ domain }}" x-data="{
+			text: {{ (q.get('text', '') if q else '') | tojson }},
+			type: {{ (q.get('type', 'select') if q else 'select') | tojson }},
+			answer: {{ (q.get('answer', '') if q else '') | tojson }},
+			answerWhy: {{ (q.get('answerWhy', '') if q else '') | tojson }},
+			difficulty: {{ (q.get('difficulty', 1) if q else 1) | tojson }},
+			relatedArticleSlug: {{ (q.get('relatedArticleSlug', '') if q else '') | tojson }},
+			hintsText: {{ ((q.get('hints', []) if q else []) | join('\n')) | tojson }},
+			solution: {{ ((q.get('solution', []) if q else []) | join(',')) | tojson }},
+			tokensText: {{ ((q.get('tokens', []) if q else []) | map(attribute='text') | join('\n')) | tojson }},
+			distractorTokensText: {{ ((q.get('distractorTokens', []) if q else []) | map(attribute='text') | join('\n')) | tojson }},
+			distractors: {{ (q.get('distractors', []) if q else []) | tojson }}
+		}" class="meta-form" style="max-width: none; margin-bottom: 0;">
+			<input type="hidden" name="uuid" value="{{ en_q.get('uuid') }}">
+
+			<label>Question Text</label>
+			<textarea name="text" rows="3" tabindex="1" x-model="text"></textarea>
+
+			<label>Type</label>
+			<select name="type" tabindex="2" x-model="type">
+				<option value="select">SELECT</option>
+				<option value="construct">CONSTRUCT</option>
+			</select>
+
+			<!-- SELECT fields -->
+			<div x-show="type === 'select'">
+				<label>Correct Answer</label>
+				<input type="text" name="answer" tabindex="3" x-model="answer">
+
+				<label>Answer Explanation (Why?)</label>
+				<textarea name="answerWhy" rows="2" tabindex="4" x-model="answerWhy"></textarea>
+
+				<label>Distractors</label>
+				<div id="distractors-list">
+					<template x-for="(d, idx) in distractors" :key="idx">
+						<div class="d-row">
+							<input type="text" name="distractor_text[]" x-model="d.text" tabindex="5">
+							<textarea name="distractor_why[]" rows="1" x-model="d.why" tabindex="6"></textarea>
+							<button type="button" @click="distractors.splice(idx, 1)">×</button>
+						</div>
+					</template>
+				</div>
+				<button type="button" class="btn" style="margin-top: 6px;" @click="distractors.push({text: '', why: ''})">+ Add Distractor</button>
+			</div>
+
+			<!-- CONSTRUCT fields -->
+			<div x-show="type === 'construct'">
+				<label>Tokens (one per line, in order)</label>
+				<textarea name="tokens_text" rows="5" tabindex="7" x-model="tokensText"></textarea>
+
+				<label>Distractor Tokens (one per line)</label>
+				<textarea name="distractor_tokens_text" rows="3" tabindex="8" x-model="distractorTokensText"></textarea>
+
+				<label>Solution (comma-separated indices, e.g. "0,1,2")</label>
+				<input type="text" name="solution" tabindex="9" x-model="solution">
+			</div>
+
+			<label>Hints (one per line)</label>
+			<textarea name="hints_text" rows="3" tabindex="10" x-model="hintsText"></textarea>
+
+			<label>Difficulty</label>
+			<select name="difficulty" tabindex="11" x-model="difficulty">
+				<option value="1">Easy</option>
+				<option value="2">Medium</option>
+				<option value="3">Hard</option>
+			</select>
+
+			<label>Related Article Slug</label>
+			<input type="text" name="relatedArticleSlug" tabindex="12" x-model="relatedArticleSlug">
+
+			<div class="form-actions" style="margin-top: 16px;">
+				<a href="/question/{{ en_q.get('uuid') }}" class="btn">Cancel</a>
+				<button type="submit" class="btn btn-primary">Save Question</button>
+			</div>
+		</form>
+	</div>
+</div>
+{% endblock %}

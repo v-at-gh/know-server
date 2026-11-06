@@ -1,0 +1,22 @@
+{# Shared task progress modal. Included by domain.html, domain_empty.html.
+   Styling inline (web/static/style.css owns layout tokens; new modal-specific
+   styles stay local to avoid merge conflicts with design-refresh brief). #}
+
+<div id="task-modal" class="modal" style="display:none;">
+  <div class="modal-dialog" style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:24px;max-width:900px;width:90%;max-height:90vh;display:flex;flex-direction:column;position:relative;">
+    <button type="button" id="task-modal-close" aria-label="Close" onclick="closeTaskModal()"
+            style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--dim);padding:4px 8px;line-height:1;">×</button>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-right:32px;">
+      <h3 style="margin:0;">Task Progress</h3>
+      <span id="task-status" class="chip">starting...</span>
+    </div>
+
+    <pre id="task-log" style="flex:1;overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:12px;font-size:12px;font-family:var(--mono,monospace);white-space:pre-wrap;max-height:60vh;margin:0;"></pre>
+
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+      <a href="#" id="task-full-link" target="_blank" class="btn" style="display:none;">Open Full Log ↗</a>
+      <button type="button" class="btn" id="task-close-btn" onclick="closeTaskModal()">Hide</button>
+    </div>
+  </div>
+</div>

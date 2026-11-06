@@ -1,0 +1,123 @@
+{% macro qs(page_num=None) -%}
+{%- set items = [] -%}
+{%- if severity_filter -%}{%- set _ = items.append('severity=' ~ severity_filter) -%}{%- endif -%}
+{%- if check_filter -%}{%- set _ = items.append('check=' ~ check_filter) -%}{%- endif -%}
+{%- if lang_filter -%}{%- set _ = items.append('lang=' ~ lang_filter) -%}{%- endif -%}
+{%- if domain_filter -%}{%- set _ = items.append('domain=' ~ domain_filter) -%}{%- endif -%}
+{%- if show and show != 'active' -%}{%- set _ = items.append('show=' ~ show) -%}{%- endif -%}
+{%- if page_num and page_num != 1 -%}{%- set _ = items.append('page=' ~ page_num) -%}{%- endif -%}
+{%- if items %}?{{ items|join('&') }}{% endif -%}
+{%- endmacro %}
+
+<div id="issues-table-content">
+{% if visible %}
+<div class="pagination-summary dim small" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+    <span>Showing {{ start_item }}–{{ end_item }} of {{ total_items }} issues</span>
+    {% if total_pages > 1 %}
+    <div class="pagination-controls" style="display: flex; gap: 4px; align-items: center;">
+        {% if page > 1 %}
+        <button class="chip" hx-get="/api/issues/table{{ qs(page_num=page - 1) }}" hx-target="#issues-container" hx-swap="innerHTML" hx-push-url="/issues{{ qs(page_num=page - 1) }}">&laquo; Prev</button>
+        {% else %}
+        <button class="chip dim" disabled style="opacity: 0.5;">&laquo; Prev</button>
+        {% endif %}
+
+        <span class="small mono" style="padding: 0 8px;">Page {{ page }} of {{ total_pages }}</span>
+
+        {% if page < total_pages %}
+        <button class="chip" hx-get="/api/issues/table{{ qs(page_num=page + 1) }}" hx-target="#issues-container" hx-swap="innerHTML" hx-push-url="/issues{{ qs(page_num=page + 1) }}">Next &raquo;</button>
+        {% else %}
+        <button class="chip dim" disabled style="opacity: 0.5;">Next &raquo;</button>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<table class="errors">
+	<thead>
+		<tr>
+			<th>severity</th>
+			<th>check</th>
+			<th>target</th>
+			<th>detail</th>
+			<th></th>
+		</tr>
+	</thead>
+	<tbody>
+		{% for issue in visible %}
+		{% set is_acked = issue.key in acks %}
+		<tr>
+			<td class="small">
+				{% if issue.severity == 'blocker' %}<span class="status-incomplete">blocker</span>
+				{% else %}<span class="status-thin">warning</span>{% endif %}
+			</td>
+			<td class="mono small">{{ issue.check }}</td>
+			<td class="small">
+				{% if issue.link %}
+				<a href="{{ issue.link }}" class="uuid-link">{{ issue.title }}</a>
+				{% else %}{{ issue.title }}{% endif %}
+				<div class="dim mono small" style="margin-top:2px">
+					{% if issue.target.lang %}{{ issue.target.lang }}{% endif %}
+					{% if issue.target.domain %} · {{ issue.target.domain }}{% endif %}
+					{% if issue.target.slug %} · {{ issue.target.slug }}{% endif %}
+					{% if issue.target.uuid %} · {{ issue.target.uuid[:8] }}{% endif %}
+				</div>
+			</td>
+			<td class="small">{{ issue.detail }}</td>
+			<td class="small">
+				{% if is_acked %}
+				<form method="post" action="/issues/unack" style="display:inline">
+					<input type="hidden" name="key" value="{{ issue.key }}">
+					<button type="submit" class="chip">unack</button>
+				</form>
+				{% else %}
+				<form method="post" action="/issues/ack" style="display:inline">
+					<input type="hidden" name="key" value="{{ issue.key }}">
+					<button type="submit" class="chip">ack</button>
+				</form>
+				{% endif %}
+			</td>
+		</tr>
+		{% endfor %}
+	</tbody>
+</table>
+
+{% if total_pages > 1 %}
+<div class="pagination-controls" style="margin-top: 16px; display: flex; gap: 4px; align-items: center; justify-content: flex-end;">
+    {% if page > 1 %}
+    <button class="chip" hx-get="/api/issues/table{{ qs(page_num=page - 1) }}" hx-target="#issues-container" hx-swap="innerHTML" hx-push-url="/issues{{ qs(page_num=page - 1) }}">&laquo; Prev</button>
+    {% endif %}
+
+    <span class="small mono" style="padding: 0 8px;">Page {{ page }} of {{ total_pages }}</span>
+
+    {% if page < total_pages %}
+    <button class="chip" hx-get="/api/issues/table{{ qs(page_num=page + 1) }}" hx-target="#issues-container" hx-swap="innerHTML" hx-push-url="/issues{{ qs(page_num=page + 1) }}">Next &raquo;</button>
+    {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<p class="dim" style="margin-top: 24px;">
+	{% if show == 'acked' %}No issues acknowledged yet.{% else %}No issues for the current filter.{% endif %}
+</p>
+{% endif %}
+
+{% if orphaned and show == 'acked' %}
+<section style="margin-top: 32px">
+	<h3>Orphaned acks ({{ orphaned|length }})</h3>
+	<p class="dim small">
+		These keys have an ack entry but no matching live issue. Safe to remove.
+	</p>
+	<ul class="uuid-list">
+		{% for key in orphaned %}
+		<li>
+			<span class="mono small">{{ key }}</span>
+			<form method="post" action="/issues/unack" style="display:inline">
+				<input type="hidden" name="key" value="{{ key }}">
+				<button type="submit" class="chip">remove</button>
+			</form>
+		</li>
+		{% endfor %}
+	</ul>
+</section>
+{% endif %}
+</div>

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Manage Domains — QuizKB Admin{% endblock %}
+{% block content %}
+<div class="meta" style="display: flex; justify-content: space-between; align-items: center;">
+	<h2 style="margin: 0;">Domain Configuration</h2>
+	<a href="/config/campaigns" class="btn">Manage Campaigns →</a>
+</div>
+
+<div style="display: flex; gap: 32px; align-items: flex-start; margin-top: 24px;">
+	<!-- Форма добавления -->
+	<div style="flex: 0 0 300px; display: flex; flex-direction: column; gap: 24px;">
+		<div class="sidebar-panel" style="padding: 0; border: none;">
+			<h3>Add / Update Domain</h3>
+			<form method="post" action="/config/domains/create" class="meta-form" style="padding: 0; border: none;">
+				<label>Slug (unique)</label>
+				<input type="text" name="slug" required placeholder="e.g. android" pattern="[a-z0-9\-]+">
+
+				<label>Display Name</label>
+				<input type="text" name="name" required placeholder="e.g. Android Dev">
+
+				<label>Kind</label>
+				<select name="kind">
+					<option value="programming-languages">Programming Languages</option>
+					<option value="tool">Tool</option>
+					<option value="practice">Practice</option>
+					<option value="method">Method</option>
+					<option value="science">Science</option>
+					<option value="reasoning">Reasoning</option>
+				</select>
+
+				<label>Description</label>
+				<textarea name="description" rows="3" placeholder="Short description..."></textarea>
+
+				<div class="form-actions">
+					<button type="submit" class="btn btn-primary">Save Domain</button>
+				</div>
+			</form>
+		</div>
+
+		<div class="sidebar-panel" style="padding: 0; border: none;">
+			<h3>Import Campaign from Text</h3>
+			<form method="post" action="/config/domains/import_text" class="meta-form" style="padding: 0; border: none;">
+				<label>Markdown Text</label>
+				<textarea name="text" rows="8" required placeholder="## 1. Topic Title&#10;Slug: `slug`&#10;Title: ...&#10;Description: ..."></textarea>
+
+				<div class="form-actions">
+					<button type="submit" class="btn btn-primary">Import Domains</button>
+				</div>
+			</form>
+		</div>
+	</div>
+
+	<!-- Таблица -->
+	<div class="table-wrap" style="flex: 1; max-height: 75vh; overflow-y: auto;">
+		<table class="articles">
+			<thead>
+				<tr>
+					<th>Slug</th>
+					<th>Name</th>
+					<th>Kind</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for d in domains %}
+				<tr>
+					<td class="mono small">
+						<a href="/domain/en/{{ d.slug }}" class="uuid-link">{{ d.slug }}</a>
+					</td>
+					<td>
+						<a href="/domain/en/{{ d.slug }}" style="color: var(--fg); text-decoration: none; border-bottom: 1px dotted var(--line);">{{ d.name }}</a>
+					</td>
+					<td class="small dim">{{ d.kind }}</td>
+				</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+	</div>
+</div>
+{% endblock %}

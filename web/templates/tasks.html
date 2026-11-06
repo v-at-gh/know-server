@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Tasks — QuizKB Admin{% endblock %}
+{% block content %}
+{% macro sortable_th(label, col_name) %}
+    {% set next_dir = 'asc' if current_sort == col_name and current_dir == 'desc' else 'desc' %}
+    <th>
+        <a href="/tasks?sort={{ col_name }}&dir={{ next_dir }}&page=1" style="color: inherit; text-decoration: none;">
+            {{ label }}
+            {% if current_sort == col_name %}
+                {{ '↓' if current_dir == 'desc' else '↑' }}
+            {% endif %}
+        </a>
+    </th>
+{% endmacro %}
+
+{% if error %}
+<div style="background: rgba(255, 0, 0, 0.1); border: 1px solid var(--incomplete); padding: 12px; margin-bottom: 16px; border-radius: 4px; color: var(--incomplete);">
+    {{ error }}
+</div>
+{% endif %}
+
+<div class="meta"><span>Total: {{ total_tasks }} tasks</span></div>
+<div class="table-wrap">
+	<table class="articles">
+		<thead>
+			<tr>
+				{{ sortable_th('ID', 'id') }}
+				{{ sortable_th('User', 'username') }}
+				{{ sortable_th('Status', 'status') }}
+				{{ sortable_th('Action', 'action') }}
+				{{ sortable_th('Domain', 'domain') }}
+				{{ sortable_th('Lang', 'lang') }}
+				{{ sortable_th('Started At', 'started_at') }}
+				<th>Actions</th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for t in tasks %}
+			<tr>
+				<td class="mono small"><a href="/tasks/{{ t.id }}">{{ t.id.split('_')[-1] }}</a></td>
+				<td class="small">{{ t.username or 'system' }}</td>
+				<td>
+					{% if t.status == 'running' %}<span class="status-ok">running</span>
+					{% elif t.status == 'queued' %}<span class="dim">queued</span>
+					{% elif t.status == 'done' %}<span class="dim">done</span>
+					{% elif t.status == 'interrupted' %}<span class="status-thin">interrupted</span>
+					{% elif t.status == 'killed' %}<span class="status-incomplete">killed</span>
+					{% else %}<span class="status-incomplete">{{ t.status }}</span>{% endif %}
+
+					{% if t.progress and t.status == 'running' %}
+					<div class="dim small mono" style="margin-top: 2px;">{{ t.progress.phase }}: {{ t.progress.done
+						}}/{{ t.progress.total }}</div>
+					{% endif %}
+				</td>
+				<td class="small">{{ t.action }}</td>
+				<td class="mono small">{{ t.domain }}</td>
+				<td class="small">{{ t.lang }}</td>
+				<td class="dim small">{{ t.started_at[:19] | replace('T', ' ') }}</td>
+				<td class="small" style="white-space: nowrap;">
+					{% if t.status == 'running' %}
+					<button class="btn kill-btn" data-id="{{ t.id }}" style="color: var(--incomplete);">Kill</button>
+					{% else %}
+					<button class="btn restart-btn" data-id="{{ t.id }}">Restart</button>
+					{% endif %}
+				</td>
+			</tr>
+			{% else %}
+			<tr>
+				<td colspan="8" class="dim">No tasks found.</td>
+			</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+</div>
+
+{% if total_pages > 1 %}
+<div class="meta" style="justify-content: space-between; align-items: center; margin-top: 16px;">
+    <span>Showing page {{ page }} of {{ total_pages }} (Total: {{ total_tasks }} tasks)</span>
+
+    <div style="display: flex; gap: 8px;">
+        {% if page > 1 %}
+        <a href="/tasks?sort={{ current_sort }}&dir={{ current_dir }}&page={{ page - 1 }}" class="btn">← Prev</a>
+        {% endif %}
+
+        {% if page < total_pages %}
+        <a href="/tasks?sort={{ current_sort }}&dir={{ current_dir }}&page={{ page + 1 }}" class="btn">Next →</a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<script>
+	document.querySelectorAll('.kill-btn').forEach(btn => {
+		btn.addEventListener('click', async (e) => {
+			if (!confirm("Kill this task?")) return;
+			const id = e.target.dataset.id;
+			const res = await fetch(`/api/tasks/${id}/kill`, { method: 'POST' });
+			if (res.ok) window.location.reload();
+			else alert("Failed to kill (maybe already finished)");
+		});
+	});
+
+	document.querySelectorAll('.restart-btn').forEach(btn => {
+		btn.addEventListener('click', async (e) => {
+			const id = e.target.dataset.id;
+			const res = await fetch(`/api/tasks/${id}/restart`, { method: 'POST' });
+			const data = await res.json();
+			if (data.status === 'ok') {
+				window.location.href = `/tasks/${data.new_task_id}`;
+			} else {
+				alert("Failed to restart");
+			}
+		});
+	});
+</script>
+{% endblock %}

@@ -1,0 +1,40 @@
+# os
+.DS_Store
+.idea/
+.vscode/
+
+# uv
+.venv
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+notebooks/
+*.ipynb
+.ipynb_checkpoints
+
+# pnpm
+/node_modules/
+know-webui/pnpm-workspace.yaml
+
+# data
+.env
+app
+backup.d
+output
+output.old-*
+*.db
+qaps/
+test_tmp_db/
+
+# helpers
+reports/
+scripts/publish_public.sh
+public/
+stop.file
+test.py
+packs.json
+state/
+*.bak

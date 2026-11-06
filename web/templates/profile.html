@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Profile Settings — QuizKB Admin{% endblock %}
+{% block content %}
+<div class="meta">
+	<h2 style="margin: 0;">Profile Settings: {{ user.username }}</h2>
+</div>
+
+{% if pruned_favorites %}
+<div class="banner banner-error" style="padding: 12px; margin-bottom: 16px; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; color: #92400e;">
+  <strong>Favorites auto-removed:</strong>
+  {{ pruned_favorites | join(", ") }}
+  <span style="font-size: 0.9em; color: #78716c;">(no longer in active domains)</span>
+</div>
+{% endif %}
+
+{% if error %}
+<div class="banner banner-error" style="padding: 12px; margin-bottom: 16px;">
+  <strong>Error:</strong> {{ error }}
+</div>
+{% endif %}
+
+<form method="post" action="/settings/profile" class="space-y-6" style="max-width: 900px;">
+	<input type="hidden" name="_favorites_section" value="1">
+	<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+		<!-- Active Domains -->
+		<div class="form-group">
+			<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+				<label style="margin: 0; font-weight: bold;">Active Domains</label>
+				<div class="small">
+					<a href="#" onclick="toggleAll('active_domains', true); return false;">All</a> |
+					<a href="#" onclick="toggleAll('active_domains', false); return false;">None</a>
+				</div>
+			</div>
+			<div class="checkbox-list scroll-y" style="max-height: 300px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px;">
+				{% for d in all_domains %}
+				<label style="display: block; margin-bottom: 4px;">
+					<input type="checkbox" name="active_domains" value="{{ d.slug }}" {% if d.slug in settings.profile.active_domains %}checked{% endif %}>
+					{{ d.name }} <span class="dim small mono">({{ d.slug }})</span>
+				</label>
+				{% endfor %}
+			</div>
+		</div>
+
+		<!-- Active Languages -->
+		<div class="form-group">
+			<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+				<label style="margin: 0; font-weight: bold;">Active Languages</label>
+				<div class="small">
+					<a href="#" onclick="toggleAll('active_langs', true); return false;">All</a> |
+					<a href="#" onclick="toggleAll('active_langs', false); return false;">None</a>
+				</div>
+			</div>
+			<div class="checkbox-list scroll-y" style="max-height: 300px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px;">
+				{% for l in all_langs %}
+				<label style="display: block; margin-bottom: 4px;">
+					<input type="checkbox" name="active_langs" value="{{ l }}" {% if l in settings.profile.active_langs %}checked{% endif %}>
+					<span class="mono">{{ l }}</span>
+				</label>
+				{% endfor %}
+			</div>
+		</div>
+	</div>
+
+	<!-- Favorites -->
+	<div class="form-group">
+		<label style="font-weight: bold; display: block; margin-bottom: 8px;">Favorites (Subset of Active Domains)</label>
+		<div class="checkbox-list scroll-y" style="max-height: 200px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px;">
+			{% for d in all_domains %}
+			{% if d.slug in settings.profile.active_domains %}
+			<label style="display: inline-block; margin-right: 16px; margin-bottom: 4px;">
+				<input type="checkbox" name="favorites" value="{{ d.slug }}" {% if d.slug in settings.favorites %}checked{% endif %}>
+				{{ d.slug }}
+			</label>
+			{% endif %}
+			{% endfor %}
+		</div>
+	</div>
+
+	<!-- Global Generation Params -->
+	<div class="form-group" style="background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px;">
+		<h3 style="margin-top: 0; font-size: 1.1em;">Global Generation Parameters</h3>
+		<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 12px;">
+			<div>
+				<label style="display: block; font-size: 0.9em; margin-bottom: 4px;">Articles per Domain</label>
+				<input type="number" name="articles_per_domain" value="{{ settings.generation_params.articles_per_domain }}" min="1" max="30" style="width: 100%; padding: 6px;">
+			</div>
+			<div>
+				<label style="display: block; font-size: 0.9em; margin-bottom: 4px;">Select Questions</label>
+				<input type="number" name="select_questions" value="{{ settings.generation_params.questions_types.select }}" min="0" max="20" style="width: 100%; padding: 6px;">
+			</div>
+			<div>
+				<label style="display: block; font-size: 0.9em; margin-bottom: 4px;">Construct Questions</label>
+				<input type="number" name="construct_questions" value="{{ settings.generation_params.questions_types.construct }}" min="0" max="20" style="width: 100%; padding: 6px;">
+			</div>
+		</div>
+	</div>
+
+	<!-- Per-Domain Overrides -->
+	<div class="form-group" style="background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px;">
+		<h3 style="margin-top: 0; font-size: 1.1em;">Per-Domain Overrides</h3>
+		<div id="per-domain-container">
+			{% for slug, val in (settings.generation_params.get('per_domain', {})).items() %}
+			<div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;" class="per-domain-row">
+				<input type="text" name="per_domain_slug" value="{{ slug }}" placeholder="domain-slug" style="flex: 2; padding: 6px;">
+				<input type="number" name="per_domain_articles" value="{{ val.articles_per_domain }}" placeholder="Articles" style="flex: 1; padding: 6px;">
+				<input type="number" name="per_domain_select" value="{{ val.questions_types.select }}" placeholder="Select Q" style="flex: 1; padding: 6px;">
+				<input type="number" name="per_domain_construct" value="{{ val.questions_types.construct }}" placeholder="Construct Q" style="flex: 1; padding: 6px;">
+				<button type="button" class="btn" onclick="this.parentElement.remove()">Remove</button>
+			</div>
+			{% endfor %}
+		</div>
+		<button type="button" class="btn" onclick="addDomainRow()">+ Add Domain Override</button>
+	</div>
+
+	<!-- Per-Language Overrides -->
+	<div class="form-group" style="background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px;">
+		<h3 style="margin-top: 0; font-size: 1.1em;">Per-Language Overrides</h3>
+		<div id="per-lang-container">
+			{% for lang, val in (settings.generation_params.get('per_lang', {})).items() %}
+			<div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;" class="per-lang-row">
+				<input type="text" name="per_lang_code" value="{{ lang }}" placeholder="lang (e.g. ru)" style="flex: 1; padding: 6px;">
+				<input type="text" name="per_lang_translate_domains" value="{{ val.translate_domains | join(', ') if val.translate_domains is iterable and val.translate_domains is not string else val.translate_domains }}" placeholder="* or domain1, domain2" style="flex: 3; padding: 6px;">
+				<button type="button" class="btn" onclick="this.parentElement.remove()">Remove</button>
+			</div>
+			{% endfor %}
+		</div>
+		<button type="button" class="btn" onclick="addLangRow()">+ Add Language Override</button>
+	</div>
+
+	<div class="form-actions" style="margin-top: 24px;">
+		<button type="submit" class="btn btn-primary" style="padding: 10px 24px;">Save Preferences</button>
+	</div>
+</form>
+
+<script>
+	function toggleAll(name, checked) {
+		document.querySelectorAll(`input[name="${name}"]`).forEach(cb => cb.checked = checked);
+	}
+	function addDomainRow() {
+		const container = document.getElementById('per-domain-container');
+		const row = document.createElement('div');
+		row.className = 'per-domain-row';
+		row.style.cssText = 'display: flex; gap: 8px; margin-bottom: 8px; align-items: center;';
+		row.innerHTML = `
+			<input type="text" name="per_domain_slug" placeholder="domain-slug" style="flex: 2; padding: 6px;">
+			<input type="number" name="per_domain_articles" placeholder="Articles" style="flex: 1; padding: 6px;">
+			<input type="number" name="per_domain_select" placeholder="Select Q" style="flex: 1; padding: 6px;">
+			<input type="number" name="per_domain_construct" placeholder="Construct Q" style="flex: 1; padding: 6px;">
+			<button type="button" class="btn" onclick="this.parentElement.remove()">Remove</button>
+		`;
+		container.appendChild(row);
+	}
+	function addLangRow() {
+		const container = document.getElementById('per-lang-container');
+		const row = document.createElement('div');
+		row.className = 'per-lang-row';
+		row.style.cssText = 'display: flex; gap: 8px; margin-bottom: 8px; align-items: center;';
+		row.innerHTML = `
+			<input type="text" name="per_lang_code" placeholder="lang (e.g. ru)" style="flex: 1; padding: 6px;">
+			<input type="text" name="per_lang_translate_domains" placeholder="* or domain1, domain2" style="flex: 3; padding: 6px;">
+			<button type="button" class="btn" onclick="this.parentElement.remove()">Remove</button>
+		`;
+		container.appendChild(row);
+	}
+</script>
+{% endblock %}

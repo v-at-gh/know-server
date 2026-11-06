@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}{{ current.slug }} — {{ lang }} — QuizKB Admin{% endblock %}
+
+{% macro q_side(label, view) %}
+<div class="q-side">
+	<div class="q-side-label">{{ label }}</div>
+	{% if view.present %}
+	<div class="q-text">{{ view.text }}</div>
+	<div class="q-answer"><span class="dim">A</span>{{ view.answer }}</div>
+	<ul class="q-list">
+		{% for d in view.distractors %}
+		<li>
+			<span class="mono small dim">D{{ loop.index }}</span>
+			<span>{{ d.text }}</span>
+			{% if d.why %}<div class="why">{{ d.why }}</div>{% endif %}
+		</li>
+		{% endfor %}
+	</ul>
+	<ul class="q-list q-hints">
+		{% for h in view.hints %}
+		<li><span class="mono small dim">H{{ loop.index }}</span><span>{{ h }}</span></li>
+		{% endfor %}
+	</ul>
+	{% else %}
+	<div class="dim small">not present</div>
+	{% endif %}
+</div>
+{% endmacro %}
+
+{% block content %}
+<div class="crumbs">
+	<a href="/coverage">Coverage</a>
+	<span>/</span>
+	<a href="/domain/{{ lang }}/{{ current.domain }}">{{ lang }} · {{ domain_display }}</a>
+	<span>/</span>
+	<span>{{ current.slug }}</span>
+</div>
+
+<h2>
+	{{ current.title }}
+	<span class="dim small">{{ current.slug }}</span>
+	<a href="/article/{{ lang }}/{{ current.domain }}/{{ current.slug }}/edit" class="edit-btn">edit</a>
+</h2>
+
+<div class="meta">
+	{% if current.exists %}
+	<span>{{ current.md_bytes }} bytes</span>
+	{% if current.short %}<span class="status-thin">short</span>{% endif %}
+	{% else %}
+	<span class="status-incomplete">missing</span>
+	{% endif %}
+	<span class="dim">{{ current.summary }}</span>
+</div>
+
+<div class="compare-controls">
+	<form method="get" action="">
+		<label for="compare">Compare with</label>
+		<select id="compare" name="compare" onchange="this.form.submit()">
+			<option value="" {% if not compare_lang %}selected{% endif %}>— none —</option>
+			{% for l in all_langs %}
+			<option value="{{ l }}" {% if l==compare_lang %}selected{% endif %}>{{ l }}</option>
+			{% endfor %}
+		</select>
+	</form>
+	{% if compare_lang %}
+	<span class="dim small">{{ pairs|length }} questions · {{ mismatch_count }} mismatched</span>
+	{% endif %}
+</div>
+
+{% if other %}
+<div class="side-by-side">
+	<section class="col" x-data="{ view: 'rendered' }">
+		<div style="display: flex; justify-content: space-between; align-items: baseline;">
+			<h3>
+				{{ compare_lang }}
+				<span class="dim small">
+					{{ other.md_bytes }} bytes
+					{% if other.short %}· short{% endif %}
+					{% if not other.exists %}· missing{% endif %}
+				</span>
+			</h3>
+			<div class="small">
+				<a href="#" @click.prevent="view = 'rendered'"
+					:style="view === 'rendered' ? 'font-weight:bold; color:var(--fg)' : 'color:var(--dim)'">Rendered</a>
+				|
+				<a href="#" @click.prevent="view = 'raw'"
+					:style="view === 'raw' ? 'font-weight:bold; color:var(--fg)' : 'color:var(--dim)'">Raw</a>
+			</div>
+		</div>
+
+		<!-- Raw View -->
+		<pre x-show="view === 'raw'" class="md-source">{{ other.text }}</pre>
+
+		<!-- Rendered View -->
+		<div x-show="view === 'rendered'" class="markdown-body markdown-target"></div>
+
+		<!-- Скрытый контейнер с сырым текстом (безопасно для любых символов) -->
+		<script type="text/plain" class="markdown-source">{{ other.text }}</script>
+	</section>
+	<section class="col" x-data="{ view: 'rendered' }">
+		<div style="display: flex; justify-content: space-between; align-items: baseline;">
+			<h3>
+				{{ lang }}
+				<span class="dim small">
+					{{ current.md_bytes }} bytes
+					{% if current.short %}· short{% endif %}
+					{% if not current.exists %}· missing{% endif %}
+				</span>
+			</h3>
+			<div class="small">
+				<a href="#" @click.prevent="view = 'rendered'"
+					:style="view === 'rendered' ? 'font-weight:bold; color:var(--fg)' : 'color:var(--dim)'">Rendered</a>
+				|
+				<a href="#" @click.prevent="view = 'raw'"
+					:style="view === 'raw' ? 'font-weight:bold; color:var(--fg)' : 'color:var(--dim)'">Raw</a>
+			</div>
+		</div>
+
+		<!-- Raw View -->
+		<pre x-show="view === 'raw'" class="md-source">{{ current.text }}</pre>
+
+		<!-- Rendered View -->
+		<div x-show="view === 'rendered'" class="markdown-body markdown-target"></div>
+
+		<!-- Скрытый контейнер с сырым текстом -->
+		<script type="text/plain" class="markdown-source">{{ current.text }}</script>
+	</section>
+</div>
+{% else %}
+<section x-data="{ view: 'rendered' }">
+	<div style="display: flex; justify-content: flex-end; align-items: baseline; margin-bottom: 8px;">
+		<div class="small">
+			<a href="#" @click.prevent="view = 'rendered'"
+				:style="view === 'rendered' ? 'font-weight:bold; color:var(--fg)' : 'color:var(--dim)'">Rendered</a> |
+			<a href="#" @click.prevent="view = 'raw'"
+				:style="view === 'raw' ? 'font-weight:bold; color:var(--fg)' : 'color:var(--dim)'">Raw</a>
+		</div>
+	</div>
+
+	<!-- Raw View -->
+	<pre x-show="view === 'raw'" class="md-source md-source-solo">{{ current.text }}</pre>
+
+	<!-- Rendered View -->
+	<div x-show="view === 'rendered'" class="markdown-body markdown-target"></div>
+
+	<!-- Скрытый контейнер -->
+	<script type="text/plain" class="markdown-source">{{ current.text }}</script>
+</section>
+{% endif %}
+
+{% if pairs %}
+<h3 class="section-title" style="display: flex; align-items: center; justify-content: space-between;">
+	<span>Questions ({{ pairs|length }}{% if mismatch_count %}, {{ mismatch_count }} mismatched{% endif %})</span>
+	<form method="post" action="/api/tasks/start" style="display:inline;">
+		<input type="hidden" name="action" value="generate_article_questions">
+		<input type="hidden" name="domain" value="{{ current.domain }}">
+		<input type="hidden" name="lang" value="{{ lang }}">
+		<input type="hidden" name="target_article_key" value="{{ current.domain }}/{{ current.slug }}">
+		<input type="number" name="target_count" value="1" min="1" max="5" style="width: 50px;">
+		<button type="submit" class="btn btn-primary" style="padding: 2px 8px; font-size: 13px;">
+			{% if lang == 'en' %}
+				Generate More Questions
+			{% else %}
+				Generate in EN & Translate to {{ lang | upper }}
+			{% endif %}
+		</button>
+	</form>
+</h3>
+{% for pair in pairs %}
+{% set bad = (pair.distractor_delta != 0) or (pair.hint_delta != 0) or (not pair.source.present) or (not
+pair.target.present) %}
+<div class="q-pair {% if bad %}q-mismatch{% endif %}">
+	<div class="q-head">
+		<a href="/question/{{ pair.uuid }}" class="mono small dim uuid-link">{{ pair.uuid[:8] }}</a>
+		<span class="dim small">diff {{ pair.difficulty }}</span>
+		{% if pair.distractor_delta != 0 %}
+		<span class="status-thin small">distractors {{ '%+d'|format(pair.distractor_delta) }}</span>
+		{% endif %}
+		{% if pair.hint_delta != 0 %}
+		<span class="status-thin small">hints {{ '%+d'|format(pair.hint_delta) }}</span>
+		{% endif %}
+		{% if not pair.source.present %}<span class="status-incomplete small">missing in {{ compare_lang }}</span>{%
+		endif %}
+		{% if not pair.target.present %}<span class="status-incomplete small">missing in {{ lang }}</span>{% endif %}
+		<form method="post" action="/question/{{ pair.uuid }}/archive" style="display:inline; margin-left: auto;">
+			<input type="hidden" name="lang" value="{{ lang }}">
+			<input type="hidden" name="domain" value="{{ current.domain }}">
+			<button type="submit" class="btn btn-sm" style="padding: 1px 6px; font-size: 11px;">Archive</button>
+		</form>
+	</div>
+	<div class="q-body">
+		{{ q_side(compare_lang, pair.source) }}
+		{{ q_side(lang, pair.target) }}
+	</div>
+</div>
+{% endfor %}
+
+{% elif questions %}
+<h3 class="section-title" style="display: flex; align-items: center; justify-content: space-between;">
+	<span>Questions ({{ questions|length }})</span>
+	<form method="post" action="/api/tasks/start" style="display:inline;">
+		<input type="hidden" name="action" value="generate_article_questions">
+		<input type="hidden" name="domain" value="{{ current.domain }}">
+		<input type="hidden" name="lang" value="{{ lang }}">
+		<input type="hidden" name="target_article_key" value="{{ current.domain }}/{{ current.slug }}">
+		<input type="number" name="target_count" value="1" min="1" max="5" style="width: 50px;">
+		<button type="submit" class="btn btn-primary" style="padding: 2px 8px; font-size: 13px;">
+			{% if lang == 'en' %}
+				Generate More Questions
+			{% else %}
+				Generate in EN & Translate to {{ lang | upper }}
+			{% endif %}
+		</button>
+	</form>
+</h3>
+{% for q in questions %}
+<div class="q-pair">
+	<div class="q-head">
+		<a href="/question/{{ q.uuid }}" class="mono small dim uuid-link">{{ q.uuid[:8] }}</a>
+		<span class="dim small">diff {{ q.difficulty }}</span>
+		<form method="post" action="/question/{{ q.uuid }}/archive" style="display:inline; margin-left: auto;">
+			<input type="hidden" name="lang" value="{{ lang }}">
+			<input type="hidden" name="domain" value="{{ current.domain }}">
+			<button type="submit" class="btn btn-sm" style="padding: 1px 6px; font-size: 11px;">Archive</button>
+		</form>
+	</div>
+	<div class="q-body q-body-solo">
+		{{ q_side(lang, q) }}
+	</div>
+</div>
+{% endfor %}
+
+{% else %}
+<h3 class="section-title" style="display: flex; align-items: center; justify-content: space-between;">
+	<span>Questions (0)</span>
+	<form method="post" action="/api/tasks/start" style="display:inline;">
+		<input type="hidden" name="action" value="generate_article_questions">
+		<input type="hidden" name="domain" value="{{ current.domain }}">
+		<input type="hidden" name="lang" value="{{ lang }}">
+		<input type="hidden" name="target_article_key" value="{{ current.domain }}/{{ current.slug }}">
+		<input type="number" name="target_count" value="1" min="1" max="5" style="width: 50px;">
+		<button type="submit" class="btn btn-primary" style="padding: 2px 8px; font-size: 13px;">
+			{% if lang == 'en' %}
+				Generate More Questions
+			{% else %}
+				Generate in EN & Translate to {{ lang | upper }}
+			{% endif %}
+		</button>
+	</form>
+</h3>
+<p class="dim">No questions linked to this article in {{ lang }}.</p>
+{% endif %}
+
+<script>
+	// Инициализация после загрузки DOM и библиотек
+	document.addEventListener('DOMContentLoaded', () => {
+		// Небольшая задержка, чтобы KaTeX точно подгрузился (defer)
+		setTimeout(() => {
+			document.querySelectorAll('.markdown-target').forEach(target => {
+				// Ищем скрытый source в том же родительском контейнере (section)
+				const source = target.closest('section').querySelector('.markdown-source');
+				if (source) {
+					target.innerHTML = renderMarkdown(source.textContent);
+				}
+			});
+		}, 100);
+	});
+</script>
+{% endblock %}

@@ -1,0 +1,39 @@
+<div class="meta">
+	<span>{{ ready_cells }} / {{ total_cells }} ready</span>
+	<span class="chip status-ok" style="font-size:0.75em;margin-left:8px;">● Live (10s)</span>
+	<span class="dim">{{ output_root }}</span>
+</div>
+
+{% if domains and rows %}
+<table class="coverage">
+	<thead>
+		<tr>
+			<th class="rowhead">Domain</th>
+			{% for row in rows %}
+			<th title="{{ row.lang }}">
+				{{ row.lang }}
+			</th>
+			{% endfor %}
+		</tr>
+	</thead>
+	<tbody>
+		{% for domain in domains %}
+		{% set domain_loop_index = loop.index0 %}
+		<tr>
+			<td class="rowhead domain-row-name" title="{{ domain.name }}">
+				{{ domain.name }}
+			</td>
+			{% for row in rows %}
+			{% set cell = row.cells[domain_loop_index] %}
+			<td class="cell status-{{ cell.status }}"
+				title="{{ domain.slug }} · {{ cell.articles }}/{{ cell.expected_articles }} articles, {{ cell.questions }} questions">
+				<a href="/domain/{{ row.lang }}/{{ domain.slug }}">{% if cell.questions > 0 %}{{ cell.questions }}{% else %}·{% endif %}</a>
+			</td>
+			{% endfor %}
+		</tr>
+		{% endfor %}
+	</tbody>
+</table>
+{% else %}
+<p class="dim" style="margin: 24px 0;">No domains or languages selected for coverage analysis. Select at least one domain and language filter above.</p>
+{% endif %}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Campaigns — QuizKB Admin{% endblock %}
+
+{% block content %}
+<div class="meta">
+	<span>{{ campaigns|length }} campaigns</span>
+	<span class="dim">{{ all_langs|length }} languages tracked</span>
+</div>
+
+<table class="campaigns">
+	<thead>
+		<tr>
+			<th class="num">#</th>
+			<th>slug</th>
+			<th>name</th>
+			<th class="num">domains</th>
+			<th class="progress-cell">ready</th>
+		</tr>
+	</thead>
+	<tbody>
+		{% for c in campaigns %}
+		<tr>
+			<td class="num dim">{{ c.order }}</td>
+			<td class="mono small"><a href="/campaign/{{ c.slug }}">{{ c.slug }}</a></td>
+			<td>{{ c.name }}<div class="dim small">{{ c.description }}</div>
+			</td>
+			<td class="num">{{ c.domain_count }}</td>
+			<td class="progress-cell">
+				{% for l in all_langs %}
+				{% if l in c.ready %}
+				<a href="/campaign/{{ c.slug }}#lang-{{ l }}" class="lang-dot status-ok" title="{{ l }}: ready">{{ l
+					}}</a>
+				{% elif l in c.partial %}
+				<a href="/campaign/{{ c.slug }}#lang-{{ l }}" class="lang-dot status-thin" title="{{ l }}: partial">{{ l
+					}}</a>
+				{% else %}
+				<a href="/campaign/{{ c.slug }}#lang-{{ l }}" class="lang-dot status-absent" title="{{ l }}: absent">{{
+					l }}</a>
+				{% endif %}
+				{% endfor %}
+			</td>
+		</tr>
+		{% endfor %}
+	</tbody>
+</table>
+{% endblock %}

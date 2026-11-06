@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+
+{% block title %}Pack Builder — QuizKB Admin{% endblock %}
+
+{% block content %}
+<div class="crumbs">
+	<a href="/coverage">Coverage</a>
+	<span>/</span>
+	<a href="/packs">Packs</a>
+	<span>/</span>
+	<span>Builder</span>
+</div>
+
+<div class="builder-page-header">
+	<h2>{% if is_edit %}Edit Pack{% else %}New Pack{% endif %}</h2>
+</div>
+
+<form method="post" action="/packs/builder" class="builder-form" id="builder-form">
+	<div class="builder-layout">
+		<!-- LEFT COLUMN: Main Content -->
+		<div class="builder-main">
+			<div class="form-row">
+				<div class="form-group" style="flex: 1;">
+					<label for="pack-id">Pack ID (filename)</label>
+					<input type="text" id="pack-id" name="id" value="{{ pack.id }}" required pattern="[a-z0-9\-]+" {% if
+						is_edit %}readonly{% endif %} placeholder="e.g. devops-extended">
+				</div>
+				<div class="form-group" style="flex: 1;">
+					<label for="kind">Kind</label>
+					<select id="kind" name="kind">
+						<option value="campaign" {% if pack.kind=='campaign' %}selected{% endif %}>Campaign</option>
+						<option value="bundle" {% if pack.kind=='bundle' %}selected{% endif %}>Bundle</option>
+						<option value="translation" {% if pack.kind=='translation' %}selected{% endif %}>Translation
+						</option>
+					</select>
+				</div>
+			</div>
+
+			<div class="form-group">
+				<label>Campaigns</label>
+				<div class="checkbox-list">
+					{% for c in campaigns %}
+					<label>
+						<input type="checkbox" name="campaigns" value="{{ c.slug }}" class="pack-cb campaign-cb"
+							data-domains="{{ c.domainSlugs|join(',') }}" {% if c.slug in pack.campaigns %}checked{%
+							endif %}>
+						{{ c.name }} ({{ c.slug }})
+					</label>
+					{% endfor %}
+				</div>
+			</div>
+
+			<div class="form-group">
+				<label>Extra Domains</label>
+				<div class="tree-container">
+					{% for kind in sorted_kinds %}
+					<details class="kind-group" data-kind="{{ kind }}" open>
+						<summary>
+							<span class="kind-title">{{ kind | replace("-", " ") | title }}</span>
+							<span class="kind-actions small">
+								<a href="#" class="select-all-btn" data-kind="{{ kind }}">select all</a> |
+								<a href="#" class="clear-all-btn" data-kind="{{ kind }}">clear</a>
+							</span>
+						</summary>
+						<div class="domain-children">
+							{% for d in domains_by_kind[kind] %}
+							<label>
+								<input type="checkbox" name="domains" value="{{ d.slug }}" class="pack-cb domain-cb" {%
+									if d.slug in pack.domains %}checked{% endif %}>
+								{{ d.name }} ({{ d.slug }})
+							</label>
+							{% endfor %}
+						</div>
+					</details>
+					{% endfor %}
+				</div>
+			</div>
+
+			<div class="form-actions" style="margin-top: 32px; border-top: 1px solid var(--line); padding-top: 16px;">
+				<a href="/packs" class="btn">Cancel</a>
+				<button type="submit" class="btn btn-primary">Save Configuration</button>
+			</div>
+		</div>
+
+		<!-- RIGHT COLUMN: Sidebar (Stats & Languages) -->
+		<div class="builder-sidebar">
+			<div class="sidebar-panel">
+				<h3>Pack Contents</h3>
+				<div class="stat-box">
+					<div class="stat-row"><span>Domains:</span> <strong id="stat-domains">0</strong></div>
+					<div class="stat-row"><span>Languages:</span> <strong id="stat-languages">0</strong></div>
+					<div class="stat-row"><span>Articles:</span> <strong id="stat-articles">0</strong></div>
+					<div class="stat-row"><span>Questions:</span> <strong id="stat-questions">0</strong></div>
+				</div>
+			</div>
+
+			<div class="sidebar-panel">
+				<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+					<h3 style="margin: 0;">Languages</h3>
+					<div class="small">
+						<a href="#" id="btn-auto-langs" style="color: var(--dim); text-decoration: none;">auto</a> |
+						<a href="#" id="btn-clear-langs" style="color: var(--dim); text-decoration: none;">none</a>
+					</div>
+				</div>
+				<div class="checkbox-list" id="lang-list">
+					{% for l in all_langs %}
+					<label>
+						<input type="checkbox" name="languages" value="{{ l }}" class="pack-cb lang-cb" {% if l in
+							pack.languages %}checked{% endif %}>
+						<div style="flex: 1; display: flex; justify-content: space-between; align-items: center;">
+							<span id="lang-name-{{ l }}">{{ lang_names.get(l, l) }}</span>
+							<span class="dim small mono" id="lang-count-{{ l }}"></span>
+						</div>
+					</label>
+					{% endfor %}
+				</div>
+			</div>
+		</div>
+	</div>
+</form>
+
+<!-- JSON Data & JS (без изменений, логика та же) -->
+<script id="stats-data" type="application/json">
+	{{ stats | tojson | safe }}
+</script>
+<script id="all-langs-data" type="application/json">
+	{{ all_langs | tojson | safe }}
+</script>
+
+<script>
+	const statsData = JSON.parse(document.getElementById('stats-data').textContent);
+	const allLangs = JSON.parse(document.getElementById('all-langs-data').textContent);
+
+	function updateStats() {
+		const activeDomains = new Set(
+			Array.from(document.querySelectorAll('.domain-cb:checked')).map(cb => cb.value)
+		);
+
+		let totalQ = 0;
+		let totalA = 0;
+		const langCounts = {};
+		allLangs.forEach(l => langCounts[l] = 0);
+
+		activeDomains.forEach(domainSlug => {
+			allLangs.forEach(langCode => {
+				if (statsData[domainSlug] && statsData[domainSlug][langCode]) {
+					const q = statsData[domainSlug][langCode].q;
+					totalQ += q;
+					totalA += statsData[domainSlug][langCode].a;
+					if (q > 0) langCounts[langCode]++;
+				}
+			});
+		});
+
+		// Обновляем счётчики рядом с языками (сколько выбранных доменов имеют контент на этом языке)
+		allLangs.forEach(l => {
+			const el = document.getElementById(`lang-count-${l}`);
+			const nameEl = document.getElementById(`lang-name-${l}`);
+
+			if (activeDomains.size === 0) {
+				el.textContent = '';
+				el.style.color = 'var(--dim)';
+				nameEl.style.color = '';
+			} else if (langCounts[l] === 0) {
+				el.textContent = '(empty)';
+				el.style.color = 'var(--incomplete)'; // red
+				nameEl.style.color = 'var(--dim)';
+			} else if (langCounts[l] < activeDomains.size) {
+				// partial translation
+				el.textContent = `(${langCounts[l]}/${activeDomains.size})`;
+				el.style.color = 'var(--thin)'; // orange
+				nameEl.style.color = 'var(--thin)'; // красим и название языка
+			} else {
+				// full translation
+				el.textContent = `(${activeDomains.size})`;
+				el.style.color = 'var(--ok)'; // green
+				nameEl.style.color = '';
+			}
+		});
+
+		const activeLangs = Array.from(document.querySelectorAll('.lang-cb:checked')).map(cb => cb.value);
+		const langsToUse = activeLangs.length > 0 ? activeLangs : allLangs;
+
+		// Пересчитываем итог с учётом выбранных языков
+		totalQ = 0;
+		totalA = 0;
+		activeDomains.forEach(domainSlug => {
+			langsToUse.forEach(langCode => {
+				if (statsData[domainSlug] && statsData[domainSlug][langCode]) {
+					totalQ += statsData[domainSlug][langCode].q;
+					totalA += statsData[domainSlug][langCode].a;
+				}
+			});
+		});
+
+		document.getElementById('stat-domains').textContent = activeDomains.size;
+		document.getElementById('stat-languages').textContent = langsToUse.length;
+		document.getElementById('stat-articles').textContent = totalA;
+		document.getElementById('stat-questions').textContent = totalQ;
+	}
+
+	// Campaigns
+	document.querySelectorAll('.campaign-cb').forEach(cb => {
+		cb.addEventListener('change', (e) => {
+			const isChecked = e.target.checked;
+			e.target.dataset.domains.split(',').forEach(d => {
+				if (!d) return;
+				const el = document.querySelector(`.domain-cb[value="${d}"]`);
+				if (el) el.checked = isChecked;
+			});
+			updateStats();
+		});
+	});
+
+	// Domains & Languages
+	document.querySelectorAll('.domain-cb, .lang-cb').forEach(cb => {
+		cb.addEventListener('change', updateStats);
+	});
+
+	// Select/Clear All per Kind
+	document.querySelectorAll('.select-all-btn').forEach(btn => {
+		btn.addEventListener('click', (e) => {
+			e.preventDefault();
+			const kind = e.target.dataset.kind;
+			document.querySelectorAll(`.kind-group[data-kind="${kind}"] .domain-cb`).forEach(cb => cb.checked = true);
+			updateStats();
+		});
+	});
+	document.querySelectorAll('.clear-all-btn').forEach(btn => {
+		btn.addEventListener('click', (e) => {
+			e.preventDefault();
+			const kind = e.target.dataset.kind;
+			document.querySelectorAll(`.kind-group[data-kind="${kind}"] .domain-cb`).forEach(cb => cb.checked = false);
+			updateStats();
+		});
+	});
+
+	// Auto-select languages with at least partial content
+	document.getElementById('btn-auto-langs').addEventListener('click', (e) => {
+		e.preventDefault();
+		document.querySelectorAll('.lang-cb').forEach(cb => {
+			const countEl = document.getElementById(`lang-count-${cb.value}`);
+			// Выбираем всё, где есть хоть какой-то контент (не пусто)
+			if (countEl && !countEl.textContent.includes('(empty)')) {
+				cb.checked = true;
+			} else {
+				cb.checked = false;
+			}
+		});
+		updateStats();
+	});
+
+	// Clear all languages
+	document.getElementById('btn-clear-langs').addEventListener('click', (e) => {
+		e.preventDefault();
+		document.querySelectorAll('.lang-cb').forEach(cb => cb.checked = false);
+		updateStats();
+	});
+
+	updateStats();
+</script>
+{% endblock %}

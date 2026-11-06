@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Translation Plan: {{ domain }} ({{ lang }}) — QuizKB Admin{% endblock %}
+{% block content %}
+<div class="crumbs">
+	<a href="/domain/{{ lang }}/{{ domain }}">Domain Details ({{ domain }} / {{ lang }})</a>
+	<span>/</span>
+	<span>Translate Plan</span>
+</div>
+
+<h2>Translation Plan for {{ domain }}</h2>
+<p class="dim small">Target languages: {{ target_langs | join(', ') }}</p>
+
+{% if enqueued %}
+<div class="banner banner-ok" style="margin-bottom: 24px;">Translation tasks successfully enqueued.</div>
+{% endif %}
+{% if error_message %}
+<div class="banner banner-error" style="margin-bottom: 24px;">{{ error_message }}</div>
+{% endif %}
+
+<div class="meta" style="margin-bottom: 16px;">
+	<span>{{ queue_count }} items to queue</span>
+	<span>{{ skip_count }} items to skip</span>
+</div>
+
+{% if items %}
+<div class="table-wrap" style="margin-bottom: 24px;">
+	<table>
+		<thead>
+			<tr>
+				<th>Domain</th>
+				<th>Language</th>
+				<th>Action</th>
+				<th>State</th>
+				<th>Reason</th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for i in items %}
+			<tr>
+				<td class="mono">{{ i.slug }}</td>
+				<td class="mono">{{ i.lang }}</td>
+				<td>
+					<span class="chip {% if i.action == 'queue' %}status-ok{% else %}dim{% endif %}">
+						{{ i.action }}
+					</span>
+				</td>
+				<td>{{ i.state }}</td>
+				<td>{{ i.reason }}</td>
+			</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+</div>
+
+<form method="post" action="/domain/{{ lang }}/{{ domain }}/translate/enqueue">
+	<input type="hidden" name="langs" value="{{ target_langs | join(',') }}">
+	<div class="form-actions">
+		<a href="/domain/{{ lang }}/{{ domain }}" class="btn">Cancel</a>
+		<button type="submit" class="btn btn-primary" {% if queue_count == 0 %}disabled{% endif %} onclick="this.disabled=true; this.form.submit();">
+			Confirm & Enqueue ({{ queue_count }})
+		</button>
+	</div>
+</form>
+{% else %}
+<p class="dim">No translation items for this domain.</p>
+<div class="form-actions">
+	<a href="/domain/{{ lang }}/{{ domain }}" class="btn">Back to Domain</a>
+</div>
+{% endif %}
+{% endblock %}

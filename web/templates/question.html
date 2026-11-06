@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}{{ detail.uuid[:8] }} — QuizKB Admin{% endblock %}
+
+{% block content %}
+<div class="crumbs">
+	<a href="/coverage">Coverage</a>
+	{% if detail.domain_slug %}
+	<span>/</span>
+	<a href="/domain/en/{{ detail.domain_slug }}">en · {{ detail.domain_slug }}</a>
+	{% endif %}
+	{% if detail.article_slug and detail.domain_slug %}
+	<span>/</span>
+	<a href="/article/en/{{ detail.domain_slug }}/{{ detail.article_slug.split('/')[-1] }}">{{
+		detail.article_slug.split('/')[-1] }}</a>
+	{% endif %}
+</div>
+
+<h2>
+	Question <span class="mono dim">{{ detail.uuid[:8] }}</span>
+	<span class="dim small">diff {{ detail.languages[0].difficulty }}</span>
+	{% if detail.archived %}
+	<span class="status-thin small">Archived</span>
+	{% endif %}
+	{% if detail.domain_slug %}
+	<a href="/question/{{ detail.uuid }}/edit?lang=en&domain={{ detail.domain_slug }}" class="edit-btn">edit (en)</a>
+	{% if detail.archived %}
+	<form method="post" action="/question/{{ detail.uuid }}/unarchive" style="display:inline; margin-left: 8px;">
+		<input type="hidden" name="lang" value="en">
+		<input type="hidden" name="domain" value="{{ detail.domain_slug }}">
+		<button type="submit" class="btn btn-sm">Unarchive</button>
+	</form>
+	{% else %}
+	<form method="post" action="/question/{{ detail.uuid }}/archive" style="display:inline; margin-left: 8px;">
+		<input type="hidden" name="lang" value="en">
+		<input type="hidden" name="domain" value="{{ detail.domain_slug }}">
+		<button type="submit" class="btn btn-sm">Archive</button>
+	</form>
+	{% endif %}
+	{% endif %}
+</h2>
+
+<div class="meta">
+	<span class="mono small dim">{{ detail.uuid }}</span>
+	{% if detail.article_slug %}
+	<span class="dim small">→ {{ detail.article_slug }}</span>
+	{% endif %}
+</div>
+
+<div class="q-grid">
+	{% for l in detail.languages %}
+	{% set ms = mismatches.get(l.lang, []) %}
+	<div class="q-lang {% if not l.present %}q-lang-missing{% elif ms %}q-lang-mismatch{% endif %}"
+		id="lang-{{ l.lang }}">
+		<div class="q-lang-head">
+			<span class="q-lang-code">{{ l.lang }}</span>
+			{% if l.present and detail.domain_slug %}
+			<a href="/question/{{ detail.uuid }}/edit?lang={{ l.lang }}&domain={{ detail.domain_slug }}" class="edit-btn">edit</a>
+			{% endif %}
+			{% if not l.present %}
+			<span class="status-incomplete small">missing</span>
+			{% elif ms %}
+			{% for m in ms %}<span class="status-thin small">{{ m }}</span>{% endfor %}
+			{% else %}
+			<span class="status-ok small">ok</span>
+			{% endif %}
+		</div>
+		{% if l.present %}
+		<div class="q-text">{{ l.text }}</div>
+		<div class="q-answer"><span class="dim">A</span>{{ l.answer }}</div>
+		<ul class="q-list">
+			{% for d in l.distractors %}
+			<li>
+				<span class="mono small dim">D{{ loop.index }}</span>
+				<span>{{ d.text }}</span>
+				{% if d.why %}<div class="why">{{ d.why }}</div>{% endif %}
+			</li>
+			{% endfor %}
+		</ul>
+		<ul class="q-list q-hints">
+			{% for h in l.hints %}
+			<li>
+				<span class="mono small dim">H{{ loop.index }}</span>
+				<span>{{ h }}</span>
+			</li>
+			{% endfor %}
+		</ul>
+		{% else %}
+		<div class="dim small" style="padding: 12px 0;">not present</div>
+		{% if l.lang != 'en' and detail.domain_slug %}
+		<form method="post" action="/question/{{ detail.uuid }}/translate" style="margin-top: 8px;">
+			<input type="hidden" name="lang" value="{{ l.lang }}">
+			<input type="hidden" name="domain" value="{{ detail.domain_slug }}">
+			<button type="submit" class="btn btn-primary" style="width: 100%;">Translate from EN</button>
+		</form>
+		{% endif %}
+		{% endif %}
+	</div>
+	{% endfor %}
+</div>
+{% endblock %}

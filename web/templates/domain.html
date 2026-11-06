@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}{{ detail.display_name }} — {{ detail.lang }} — QuizKB Admin{% endblock %}
+
+{% block content %}
+<div class="crumbs">
+	<a href="/coverage">Coverage</a>
+	<span>/</span>
+	<span>{{ detail.lang }}</span>
+	<span>/</span>
+	<span>{{ detail.slug }}</span>
+</div>
+
+{% if saved %}
+<div class="banner banner-ok">Saved.</div>
+{% endif %}
+{% if error_message %}
+<div class="banner banner-error">{{ error_message }}</div>
+{% endif %}
+
+{% if not editing %}
+<h2>
+	{{ detail.display_name }}
+	<span class="dim small">{{ detail.slug }} · {{ detail.lang }}</span>
+	<a href="/domain/{{ detail.lang }}/{{ detail.slug }}?edit=1" class="edit-btn">edit</a>
+</h2>
+{% else %}
+<form method="post" action="/domain/{{ detail.lang }}/{{ detail.slug }}/meta" class="meta-form">
+	<h2 style="margin:0 0 4px 0">
+		Edit meta
+		<span class="dim small">{{ detail.slug }} · {{ detail.lang }}</span>
+	</h2>
+	<label for="meta-name">Name</label>
+	<input id="meta-name" type="text" name="name" value="{{ detail.display_name }}" maxlength="100" required
+		autocomplete="off" spellcheck="false">
+	<label for="meta-desc">Description</label>
+	<textarea id="meta-desc" name="description" maxlength="500" rows="3"
+		spellcheck="false">{{ detail.display_description }}</textarea>
+	<div class="form-actions">
+		<a href="/domain/{{ detail.lang }}/{{ detail.slug }}" class="btn">Cancel</a>
+		<button type="submit" class="btn btn-primary">Save</button>
+	</div>
+</form>
+{% endif %}
+
+{% if not detail.has_meta %}
+<div class="banner banner-error"
+	style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+	<span>⚠️ This domain is missing localized metadata (name/description) for <strong>{{ detail.lang }}</strong>. Packs
+		will fail to build.</span>
+	<button class="btn btn-primary" onclick="startTask('{{ detail.slug }}', '{{ detail.lang }}', 'ensure_meta')">
+		Generate Metadata
+	</button>
+</div>
+{% endif %}
+<div class="meta">
+	<span class="status-{{ detail.status }}">{{ detail.status }}</span>
+	<span>{{ detail.questions_total }} questions</span>
+	<span>{{ detail.articles|length }} / {{ detail.expected_articles }} articles</span>
+	{% if detail.display_description %}
+	<span class="dim">{{ detail.display_description }}</span>
+	{% endif %}
+	{% if detail.short_articles_count %}
+	<span class="status-thin">{{ detail.short_articles_count }} short</span>
+	{% endif %}
+	{% if detail.missing_articles_count %}
+	<span class="status-incomplete">{{ detail.missing_articles_count }} missing</span>
+	{% endif %}
+	{% if detail.uuid_missing|length %}
+	<span class="status-incomplete">{{ detail.uuid_missing|length }} UUIDs missing</span>
+	{% endif %}
+</div>
+
+{% set is_translation = detail.lang != 'en' %}
+{% set has_missing = detail.missing_articles_count > 0 or detail.uuid_missing|length > 0 %}
+{% set action_name = 'translate' if is_translation else 'recover' %}
+
+<div style="margin-bottom: 24px; display: flex; gap: 12px; align-items: center;">
+	{% if has_missing %}
+	<button class="btn btn-primary" onclick="startTask('{{ detail.slug }}', '{{ detail.lang }}', '{{ action_name }}')">
+		{% if is_translation %}Generate Translation{% else %}Recover Content{% endif %}
+	</button>
+	{% endif %}
+	<a href="/domain/{{ detail.lang }}/{{ detail.slug }}/translate/plan?langs={{ detail.lang }}" class="btn">Preview Translation Plan</a>
+</div>
+
+<div class="table-wrap" style="margin-bottom: 32px;">
+	<table class="articles" style="margin-bottom: 0;">
+		<thead>
+			<tr>
+				<th class="num">#</th>
+				<th>slug</th>
+				<th>title</th>
+				<th class="num">bytes</th>
+				<th class="num">q</th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for a in detail.articles %}
+			<tr class="{% if a.missing %}row-bad{% elif a.short %}row-warn{% endif %}">
+				<td class="num dim">{{ a.order }}</td>
+				<td class="mono small">
+					<a href="/article/{{ detail.lang }}/{{ detail.slug }}/{{ a.slug }}">{{ a.slug }}</a>
+				</td>
+				<td>{{ a.title }}</td>
+				<td class="num">{{ a.md_bytes if a.md_bytes else '—' }}</td>
+				<td class="num {% if a.questions == 0 %}status-incomplete{% endif %}">{{ a.questions }}</td>
+			</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+</div>
+
+{% if detail.uuid_missing %}
+<section>
+	<h3>Missing UUIDs ({{ detail.uuid_missing|length }})</h3>
+	<ul class="uuid-list">
+		{% for u in detail.uuid_missing %}
+		<li class="mono small">
+			<a href="/question/{{ u }}#lang-{{ detail.lang }}" class="uuid-link">{{ u }}</a>
+		</li>
+		{% endfor %}
+	</ul>
+</section>
+{% endif %}
+
+{% if errors %}
+<section>
+	<h3>Recent errors for this domain ({{ errors|length }})</h3>
+	<ul class="error-list">
+		{% for e in errors %}
+		<li>
+			<span class="dim small mono">{{ e.ts[11:19] }}</span>
+			<span class="mono small">{{ e.label }}</span>
+			<span class="reason">{{ e.reason }}</span>
+		</li>
+		{% endfor %}
+	</ul>
+</section>
+{% endif %}
+
+{% include "_task_modal.html" %}
+{% endblock %}
