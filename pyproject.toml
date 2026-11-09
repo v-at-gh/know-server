@@ -1,6 +1,7 @@
 [project]
+license = {text = "AGPL-3.0-or-later"}
 name = "know"
-version = "0.2.0"
+version = "0.0.1"
 description = "Content-agnostic learning framework: pipeline, admin, worker, public API"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -9,7 +10,6 @@ dependencies = [
     "requests>=2.31.0",
     "ollama>=0.6.2",
     "structlog>=26.1.0",
-    # telemetry (Stage 3b)
     "opentelemetry-api>=1.45.0",
     "opentelemetry-sdk>=1.45.0",
     "opentelemetry-exporter-otlp>=1.45.0",
